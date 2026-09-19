@@ -30,7 +30,6 @@ public class Game extends JavaPlugin implements Listener {
 	private Arena arena;
 	private Infobase database;
 	private Resources resources;
-	private SoupListener soupListener;
 	
 	private String updateVersion = "Error";
 	private boolean needsUpdate = false;
@@ -58,8 +57,7 @@ public class Game extends JavaPlugin implements Listener {
 		pm.registerEvents(new HitListener(this), this);
 		pm.registerEvents(new AttackListener(this), this);
 		pm.registerEvents(new ItemListener(this), this);
-		soupListener = new SoupListener(this);
-		pm.registerEvents(soupListener, this);
+		pm.registerEvents(new SoupListener(this), this);
 		pm.registerEvents(new ChatListener(this), this);
 		pm.registerEvents(new SignListener(this), this);
 		pm.registerEvents(new AliasCommand(this), this);
@@ -171,8 +169,6 @@ public class Game extends JavaPlugin implements Listener {
 	public Arena getArena() { return arena; }
 
 	public Infobase getDatabase() { return database; }
-
-	public SoupListener getSoupListener() { return soupListener; }
 	
 	public static String getPrefix() { return prefix; }
 	

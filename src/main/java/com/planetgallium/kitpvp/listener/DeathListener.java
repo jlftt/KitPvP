@@ -10,7 +10,6 @@ import org.bukkit.Sound;
 import org.bukkit.World;
 import org.bukkit.entity.*;
 import org.bukkit.event.EventHandler;
-import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
@@ -20,7 +19,6 @@ import org.bukkit.event.player.PlayerRespawnEvent;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 import org.bukkit.scheduler.BukkitRunnable;
-import org.bukkit.util.Vector;
 
 import com.planetgallium.kitpvp.Game;
 import com.planetgallium.kitpvp.game.Arena;
@@ -39,68 +37,6 @@ public class DeathListener implements Listener {
 		this.arena = plugin.getArena();
 		this.resources = plugin.getResources();
 		this.config = resources.getConfig();
-	}
-
-	/**
-	 * With Arena.InstantRespawn the player never actually dies: the lethal hit is cancelled and a death event is
-	 * fired for them instead, so there is no death screen, no death animation and no waiting, while the rest of
-	 * the server (death messages, statistics, combat tag) still sees the kill. Everything else, including
-	 * sending the player back to spawn, is done by onDeath below.
-	 */
-	@EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
-	public void onLethalDamage(EntityDamageEvent e) {
-		if (!config.getBoolean("Arena.InstantRespawn") || !(e.getEntity() instanceof Player)) {
-			return;
-		}
-
-		Player victim = (Player) e.getEntity();
-
-		if (!Toolkit.inArena(victim) || victim.getGameMode() == GameMode.SPECTATOR || victim.isDead()) {
-			return;
-		}
-
-		if (victim.getHealth() - e.getFinalDamage() > 0) {
-			return; // survivable
-		}
-
-		if (!DeathEvents.isSupported()) {
-			return; // let the player die for real, onDeath then respawns them immediately
-		}
-
-		Player killer = resolveKiller(victim, e);
-
-		e.setCancelled(true);
-
-		// The lethal hit was cancelled, so it never reached the hit cache that onDeath falls back on
-		if (killer != null && !killer.getName().equals(victim.getName())) {
-			arena.getHitCache().put(victim.getName(), killer.getName());
-		}
-
-		if (!DeathEvents.callDeathEvent(victim, e, killer)) {
-			e.setCancelled(false); // could not tell anyone, so let it be a normal death after all
-		}
-	}
-
-	// The player that gets the kill: whoever dealt the lethal hit, or the last player who hit the victim
-	private Player resolveKiller(Player victim, EntityDamageEvent lethalDamage) {
-		if (lethalDamage instanceof EntityDamageByEntityEvent) {
-			Entity damager = ((EntityDamageByEntityEvent) lethalDamage).getDamager();
-
-			if (damager instanceof Player) {
-				return (Player) damager;
-			}
-
-			if (damager instanceof Projectile && ((Projectile) damager).getShooter() instanceof Player) {
-				return (Player) ((Projectile) damager).getShooter();
-			}
-
-			if (damager.getType() == EntityType.PRIMED_TNT && damager.getCustomName() != null) {
-				return Toolkit.getPlayer(victim.getWorld(), damager.getCustomName());
-			}
-		}
-
-		String lastHitterName = arena.getHitCache().get(victim.getName());
-		return lastHitterName != null ? Toolkit.getPlayer(victim.getWorld(), lastHitterName) : null;
 	}
 
 	@EventHandler
@@ -143,15 +79,8 @@ public class DeathListener implements Listener {
 	@EventHandler
 	public void onRespawn(PlayerRespawnEvent e) {
 		if (Toolkit.inArena(e.getPlayer())) {
-			if (config.getBoolean("Arena.InstantRespawn") || !config.getBoolean("Arena.FancyDeath")) {
+			if (!config.getBoolean("Arena.FancyDeath")) {
 				Player p = e.getPlayer();
-
-				// Respawning straight at the arena spawn avoids the teleport that would otherwise be seen
-				Location spawnLocation = arena.getRandomSpawnLocation(p.getWorld().getName());
-				if (spawnLocation != null) {
-					e.setRespawnLocation(spawnLocation);
-					return;
-				}
 
 				new BukkitRunnable() {
 					@Override
@@ -165,11 +94,6 @@ public class DeathListener implements Listener {
 
 	private void respawnPlayer(Player victim) {
 		if (!victim.isOnline()) {
-			return;
-		}
-
-		if (config.getBoolean("Arena.InstantRespawn")) {
-			instantlyRespawnPlayer(victim);
 			return;
 		}
 
@@ -228,45 +152,6 @@ public class DeathListener implements Listener {
 				}
 			}.runTaskLater(plugin, 1L);
 		}
-	}
-
-	/**
-	 * Sends the player straight back into the fight: no death screen, no spectator mode and no countdown.
-	 * The respawn happens on the next tick because a player cannot be respawned from inside the death event, and
-	 * onRespawn already respawns them at an arena spawn.
-	 */
-	private void instantlyRespawnPlayer(Player victim) {
-		arena.removePlayer(victim);
-		doClearInventoryOnRespawnIfEnabled(victim);
-
-		if (!victim.isDead()) {
-			// The hit that would have killed them was cancelled, so they can go back to spawn right now
-			victim.setFireTicks(0);
-			victim.setVelocity(new Vector(0, 0, 0));
-			victim.setNoDamageTicks(20); // a second of protection so they are not killed on arrival
-
-			arena.addPlayer(victim, true, config.getBoolean("Arena.GiveItemsOnRespawn"));
-			victim.setHealth(Toolkit.getMaxHealth(victim));
-
-			Toolkit.runCommands(victim, config.getStringList("Respawn.Commands"), "none", "none");
-			return;
-		}
-
-		new BukkitRunnable() {
-			@Override
-			public void run() {
-				if (!victim.isOnline()) {
-					return;
-				}
-
-				if (victim.isDead()) {
-					victim.spigot().respawn();
-				}
-
-				arena.addPlayer(victim, true, config.getBoolean("Arena.GiveItemsOnRespawn"));
-				Toolkit.runCommands(victim, config.getStringList("Respawn.Commands"), "none", "none");
-			}
-		}.runTaskLater(plugin, 1L);
 	}
 
 	private void doClearInventoryOnRespawnIfEnabled(Player victim) {

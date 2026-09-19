@@ -5,7 +5,6 @@ import java.util.*;
 import com.planetgallium.kitpvp.util.*;
 import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
-import org.bukkit.Location;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
@@ -163,15 +162,6 @@ public class Arena {
 				p.getInventory().setItem(config.getInt(itemPath + ".Slot"), item);
 			}
 		}
-	}
-
-	// null when the world has no arena spawn configured
-	public Location getRandomSpawnLocation(String arenaName) {
-		if (!config.contains("Arenas." + arenaName)) {
-			return null;
-		}
-		return Toolkit.getLocationFromResource(config,
-				"Arenas." + arenaName + "." + generateRandomArenaSpawn(arenaName));
 	}
 
 	public void toSpawn(Player p, String arenaName) {

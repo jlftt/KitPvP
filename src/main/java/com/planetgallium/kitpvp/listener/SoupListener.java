@@ -31,12 +31,9 @@ public class SoupListener implements Listener {
 			return;
 		}
 			
-		giveSoupRewardIfEnabled(victim.getKiller());
-	}
+		if (victim.getKiller() != null && config.getBoolean("Kill.SoupReward.Enabled")) {
+			Player killer = victim.getKiller();
 
-	// Also called directly when Arena.InstantRespawn handles a death without the player actually dying
-	public void giveSoupRewardIfEnabled(Player killer) {
-		if (killer != null && config.getBoolean("Kill.SoupReward.Enabled")) {
 			if (!killer.hasPermission("kp.soupreturn")) {
 				return;
 			}

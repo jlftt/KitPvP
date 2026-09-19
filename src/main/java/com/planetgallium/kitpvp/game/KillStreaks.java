@@ -28,21 +28,20 @@ public class KillStreaks implements Listener {
 	@EventHandler
 	public void onKill(PlayerDeathEvent e) {
 		if (Toolkit.inArena(e.getEntity())) {
-			handleKill(e.getEntity().getKiller(), e.getEntity());
-		}
-	}
+			Player damager = e.getEntity().getKiller();
+			Player damagedPlayer = e.getEntity();
 
-	// Also called directly when Arena.InstantRespawn handles a death without the player actually dying
-	public void handleKill(Player killer, Player victim) {
-		if (killer != null && !killer.getName().equals(victim.getName())) {
-			kills.put(killer.getName(), getStreak(killer.getName()) + 1);
-			runStreakCase("KillStreaks", killer);
-			runStreakCase("EndStreaks", victim);
-			kills.put(victim.getName(), 0);
-
-		} else {
-			kills.put(victim.getName(), 0);
-			runStreakCase("EndStreaks", victim);
+			if (damager != null && !damager.getName().equals(damagedPlayer.getName())) {
+				kills.put(damager.getName(), getStreak(damager.getName()) + 1);
+				runStreakCase("KillStreaks", damager);
+				runStreakCase("EndStreaks", damagedPlayer);
+				kills.put(damagedPlayer.getName(), 0);
+				
+			} else {
+				kills.put(damagedPlayer.getName(), 0);
+				runStreakCase("EndStreaks", damagedPlayer);
+			}
+			
 		}
 	}
 	
