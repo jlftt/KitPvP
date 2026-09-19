@@ -79,8 +79,15 @@ public class DeathListener implements Listener {
 	@EventHandler
 	public void onRespawn(PlayerRespawnEvent e) {
 		if (Toolkit.inArena(e.getPlayer())) {
-			if (!config.getBoolean("Arena.FancyDeath")) {
+			if (config.getBoolean("Arena.InstantRespawn") || !config.getBoolean("Arena.FancyDeath")) {
 				Player p = e.getPlayer();
+
+				// Respawning straight at the arena spawn avoids the teleport that would otherwise be seen
+				Location spawnLocation = arena.getRandomSpawnLocation(p.getWorld().getName());
+				if (spawnLocation != null) {
+					e.setRespawnLocation(spawnLocation);
+					return;
+				}
 
 				new BukkitRunnable() {
 					@Override
@@ -94,6 +101,11 @@ public class DeathListener implements Listener {
 
 	private void respawnPlayer(Player victim) {
 		if (!victim.isOnline()) {
+			return;
+		}
+
+		if (config.getBoolean("Arena.InstantRespawn")) {
+			instantlyRespawnPlayer(victim);
 			return;
 		}
 
@@ -152,6 +164,32 @@ public class DeathListener implements Listener {
 				}
 			}.runTaskLater(plugin, 1L);
 		}
+	}
+
+	/**
+	 * Sends the player straight back into the fight: no death screen, no spectator mode and no countdown.
+	 * The respawn happens on the next tick because a player cannot be respawned from inside the death event, and
+	 * onRespawn already respawns them at an arena spawn.
+	 */
+	private void instantlyRespawnPlayer(Player victim) {
+		arena.removePlayer(victim);
+		doClearInventoryOnRespawnIfEnabled(victim);
+
+		new BukkitRunnable() {
+			@Override
+			public void run() {
+				if (!victim.isOnline()) {
+					return;
+				}
+
+				if (victim.isDead()) {
+					victim.spigot().respawn();
+				}
+
+				arena.addPlayer(victim, true, config.getBoolean("Arena.GiveItemsOnRespawn"));
+				Toolkit.runCommands(victim, config.getStringList("Respawn.Commands"), "none", "none");
+			}
+		}.runTaskLater(plugin, 1L);
 	}
 
 	private void doClearInventoryOnRespawnIfEnabled(Player victim) {
