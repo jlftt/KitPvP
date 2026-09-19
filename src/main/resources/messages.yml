@@ -26,6 +26,7 @@ Messages:
     NoKit: 'None'
     PreviewMenuTitle: 'Previewing: %kit%'
     PreviewMenuBackArrowItemName: '&cBack to Kits'
+    PreviewMenuSelectItemName: '&a&lSelect This Kit'
     PreviewMenuPotionEffectsItemName: '&a&lPotion Effects'
     OverflowItemsDropped: '%prefix% &b%number% &7kit items had no inventory space and were dropped on the ground.'
   Error:

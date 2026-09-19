@@ -94,6 +94,14 @@ public class KitMenu {
 
 				setButton(entry.getKey(), (player, click) -> {
 					String clickType = getCommandsKey(click);
+
+					// Bedrock clients send a single kind of click, so any click opens the preview, which has
+					// its own select button
+					if (Toolkit.isBedrockPlayer(player) &&
+							resources.getMenu().contains(itemPath + ".Commands.Right-Click")) {
+						clickType = "Right-Click";
+					}
+
 					if (clickType == null) {
 						return;
 					}

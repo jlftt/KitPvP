@@ -236,6 +236,12 @@ public class Toolkit {
 
 	}
 
+	// Bedrock players connected through Floodgate/Geyser get a UUID whose most significant bits are zero.
+	// Their client cannot tell left and right clicks apart in a Java menu, so menus treat their clicks differently.
+	public static boolean isBedrockPlayer(Player player) {
+		return player.getUniqueId().getMostSignificantBits() == 0;
+	}
+
 	// Kit and ability permissions (kp.kit.*, kp.ability.*) are skipped when Other.RequireKitPermissions is false
 	public static boolean hasKitPermission(Player player, String permission) {
 		Resource config = Game.getInstance().getResources().getConfig();
