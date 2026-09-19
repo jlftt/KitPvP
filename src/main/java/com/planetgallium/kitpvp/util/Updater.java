@@ -70,7 +70,7 @@ public class Updater {
 
                 String fetchedVersion = Resources.toString(httpURLConnection.getURL(), Charset.defaultCharset());
 
-                boolean latestVersion = fetchedVersion.equalsIgnoreCase(this.currentVersion);
+                boolean latestVersion = compareVersions(this.currentVersion, fetchedVersion.trim()) >= 0;
 
                 Bukkit.getScheduler().runTask(this.javaPlugin, () ->
                         this.versionResponse.accept(latestVersion ? VersionResponse.LATEST : VersionResponse.FOUND_NEW,
@@ -81,6 +81,26 @@ public class Updater {
                         this.versionResponse.accept(VersionResponse.UNAVAILABLE, null));
             }
         });
+    }
+
+    // Compares dotted versions numerically (e.g. "2.2.6" > "2.2.5"); non-numeric parts count as 0.
+    private static int compareVersions(String a, String b) {
+        String[] partsA = a.split("\\.");
+        String[] partsB = b.split("\\.");
+
+        for (int i = 0; i < Math.max(partsA.length, partsB.length); i++) {
+            int numA = i < partsA.length ? parseLeadingInt(partsA[i]) : 0;
+            int numB = i < partsB.length ? parseLeadingInt(partsB[i]) : 0;
+            if (numA != numB) {
+                return Integer.compare(numA, numB);
+            }
+        }
+        return 0;
+    }
+
+    private static int parseLeadingInt(String part) {
+        String digits = part.replaceAll("^\\D*(\\d*).*$", "$1");
+        return digits.isEmpty() ? 0 : Integer.parseInt(digits);
     }
 
 }
