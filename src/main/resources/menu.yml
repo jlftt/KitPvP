@@ -6,6 +6,12 @@ Menu:
   General:
     Title: 'Kits'
     Size: 54
+    ClickLore:
+      Java:
+      - '&fLeft-click to select.'
+      - '&fRight-click to preview.'
+      Bedrock:
+      - '&fClick to select.'
   Items:
     10:
       Name: '&a&lFighter Kit'
@@ -19,8 +25,6 @@ Menu:
       - '&7- Iron Leggings'
       - '&7- Iron Boots'
       - ' '
-      - '&eLeft-click to select.'
-      - '&eRight-click to preview.'
       Commands:
         Left-Click:
         - 'player: kp kit Fighter'
@@ -40,8 +44,6 @@ Menu:
       - '&7- Chain Leggings'
       - '&7- Chain Boots'
       - ' '
-      - '&eLeft-click to select.'
-      - '&eRight-click to preview.'
       Commands:
         Left-Click:
         - 'player: kp kit Archer'
@@ -59,8 +61,6 @@ Menu:
       - '&7- Diamond Leggings'
       - '&7- Iron Boots'
       - ' '
-      - '&eLeft-click to select.'
-      - '&eRight-click to preview.'
       Commands:
         Left-Click:
         - 'player: kp kit Tank'
@@ -81,8 +81,6 @@ Menu:
       - '&7- Leather Leggings'
       - '&7- Leather Boots'
       - ' '
-      - '&eLeft-click to select.'
-      - '&eRight-click to preview.'
       Commands:
         Left-Click:
         - 'player: kp kit Soldier'
@@ -101,8 +99,6 @@ Menu:
       - '&7- Leather Leggings'
       - '&7- Leather Boots'
       - ' '
-      - '&eLeft-click to select.'
-      - '&eRight-click to preview.'
       Commands:
         Left-Click:
         - 'player: kp kit Bomber'
@@ -120,8 +116,6 @@ Menu:
       - '&7- Leather Leggings'
       - '&7- Leather Boots'
       - ' '
-      - '&eLeft-click to select.'
-      - '&eRight-click to preview.'
       Commands:
         Left-Click:
         - 'player: kp kit Kangaroo'
@@ -140,8 +134,6 @@ Menu:
       - '&7- Leather Leggings'
       - '&7- Leather Boots'
       - ' '
-      - '&eLeft-click to select.'
-      - '&eRight-click to preview.'
       Commands:
         Left-Click:
         - 'player: kp kit Warper'
@@ -160,8 +152,6 @@ Menu:
       - '&7- Leather Leggings'
       - '&7- Leather Boots'
       - ' '
-      - '&eLeft-click to select.'
-      - '&eRight-click to preview.'
       Commands:
         Left-Click:
         - 'player: kp kit Witch'
@@ -179,8 +169,6 @@ Menu:
       - '&7- Chain Leggings'
       - '&7- Chain Boots'
       - ' '
-      - '&eLeft-click to select.'
-      - '&eRight-click to preview.'
       Commands:
         Left-Click:
         - 'player: kp kit Ninja'
@@ -198,8 +186,6 @@ Menu:
       - '&7- Golden Leggings'
       - '&7- Golden Boots'
       - ' '
-      - '&eLeft-click to select.'
-      - '&eRight-click to preview.'
       Commands:
         Left-Click:
         - 'player: kp kit Thunderbolt'
@@ -217,8 +203,6 @@ Menu:
       - '&7- Leather Leggings'
       - '&7- Leather Boots'
       - ' '
-      - '&eLeft-click to select.'
-      - '&eRight-click to preview.'
       Commands:
         Left-Click:
         - 'player: kp kit Vampire'
@@ -236,8 +220,6 @@ Menu:
       - '&7- Leather Leggings'
       - '&7- Leather Boots'
       - ' '
-      - '&eLeft-click to select.'
-      - '&eRight-click to preview.'
       Commands:
         Left-Click:
         - 'player: kp kit Rhino'
@@ -255,8 +237,6 @@ Menu:
       - '&7- Leather Leggings'
       - '&7- Leather Boots'
       - ' '
-      - '&eLeft-click to select.'
-      - '&eRight-click to preview.'
       Commands:
         Left-Click:
         - 'player: kp kit Trickster'

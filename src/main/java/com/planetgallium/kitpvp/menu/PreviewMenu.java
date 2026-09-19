@@ -1,7 +1,6 @@
 package com.planetgallium.kitpvp.menu;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 import com.cryptomorin.xseries.XMaterial;
@@ -17,7 +16,6 @@ import org.bukkit.potion.PotionEffect;
 public class PreviewMenu {
 
 	private static final int SIZE = 54;
-	private static final int SELECT_SLOT = 7;
 	private static final int BACK_ARROW_SLOT = 8;
 
 	private ItemStack[] buildContents(Kit kit, Resources resources) {
@@ -76,10 +74,6 @@ public class PreviewMenu {
 			}
 		}
 
-		// Bedrock players cannot right-click a kit in the menu, so the kit is also selectable from here
-		contents[SELECT_SLOT] = buildItem(resources.getMessages().fetchString("Messages.Other.PreviewMenuSelectItemName"),
-				XMaterial.LIME_DYE.parseItem(), new ArrayList<>());
-
 		contents[BACK_ARROW_SLOT] = buildItem(resources.getMessages().fetchString("Messages.Other.PreviewMenuBackArrowItemName"),
 				XMaterial.ARROW.parseItem(), new ArrayList<>());
 
@@ -103,16 +97,13 @@ public class PreviewMenu {
 		String title = resources.getMessages().fetchString("Messages.Other.PreviewMenuTitle")
 				.replace("%kit%", kit.getName());
 
-		new Instance(title, contents, resources, kit.getName()).open(p);
+		new Instance(title, contents, resources).open(p);
 	}
 
 	private static class Instance extends KitPvPMenu {
 
-		Instance(String title, ItemStack[] contents, Resources resources, String kitName) {
+		Instance(String title, ItemStack[] contents, Resources resources) {
 			createInventory(title, SIZE, contents);
-
-			setButton(SELECT_SLOT, (player, click) ->
-					runCommandsThenClose(player, Collections.singletonList("player: kp kit " + kitName)));
 
 			setButton(BACK_ARROW_SLOT, (player, click) ->
 					runCommandsThenClose(player, resources.getConfig().getStringList("PreviewMenuBackArrowCommands")));

@@ -17,10 +17,12 @@ public class KitMenu {
 
 	private final Resources resources;
 
-	// Built once from menu.yml and copied into each opened menu; cleared by invalidate() on reload
+	// Built once from menu.yml and copied into each opened menu; cleared by invalidate() on reload.
+	// Java and Bedrock players get their own contents because their click hints differ.
 	private String title;
 	private int size;
-	private ItemStack[] contents;
+	private ItemStack[] javaContents;
+	private ItemStack[] bedrockContents;
 	private Map<Integer, String> itemPaths;
 
 	public KitMenu(Resources resources) {
@@ -28,7 +30,8 @@ public class KitMenu {
 	}
 
 	public void invalidate() {
-		this.contents = null;
+		this.javaContents = null;
+		this.bedrockContents = null;
 	}
 
 	private void build() {
@@ -36,7 +39,8 @@ public class KitMenu {
 
 		this.title = menuConfig.fetchString("Menu.General.Title");
 		this.size = menuConfig.getInt("Menu.General.Size");
-		this.contents = new ItemStack[size];
+		this.javaContents = new ItemStack[size];
+		this.bedrockContents = new ItemStack[size];
 		this.itemPaths = new HashMap<>();
 
 		ConfigurationSection section = menuConfig.getConfigurationSection("Menu.Items");
@@ -58,11 +62,27 @@ public class KitMenu {
 			}
 
 			String itemPath = "Menu.Items." + key;
-			contents[slot] = buildItem(menuConfig.fetchString(itemPath + ".Name"),
-					Toolkit.safeMaterial(menuConfig.fetchString(itemPath + ".Material")),
-					menuConfig.getStringList(itemPath + ".Lore"));
+			String name = menuConfig.fetchString(itemPath + ".Name");
+			Material material = Toolkit.safeMaterial(menuConfig.fetchString(itemPath + ".Material"));
+
+			javaContents[slot] = buildItem(name, material, loreWithClickHint(menuConfig, itemPath, false));
+			bedrockContents[slot] = buildItem(name, material, loreWithClickHint(menuConfig, itemPath, true));
 			itemPaths.put(slot, itemPath);
 		}
+	}
+
+	/**
+	 * Item lore plus the click hint for this client. Bedrock clients cannot tell left and right clicks apart, so
+	 * they are only told to click, and any click selects the kit. Items without commands (such as a close button)
+	 * keep their configured lore.
+	 */
+	private static List<String> loreWithClickHint(Resource menuConfig, String itemPath, boolean bedrock) {
+		List<String> lore = new ArrayList<>(menuConfig.getStringList(itemPath + ".Lore"));
+
+		if (menuConfig.contains(itemPath + ".Commands.Left-Click")) {
+			lore.addAll(menuConfig.getStringList("Menu.General.ClickLore." + (bedrock ? "Bedrock" : "Java")));
+		}
+		return lore;
 	}
 
 	private static ItemStack buildItem(String name, Material material, List<String> lore) {
@@ -78,30 +98,23 @@ public class KitMenu {
 	}
 
 	public void open(Player p) {
-		if (contents == null) {
+		if (javaContents == null) {
 			build();
 		}
-		new Instance().open(p);
+		new Instance(Toolkit.isBedrockPlayer(p)).open(p);
 	}
 
 	private class Instance extends KitPvPMenu {
 
-		Instance() {
-			createInventory(title, size, contents);
+		Instance(boolean bedrock) {
+			createInventory(title, size, bedrock ? bedrockContents : javaContents);
 
 			for (Map.Entry<Integer, String> entry : itemPaths.entrySet()) {
 				String itemPath = entry.getValue();
 
 				setButton(entry.getKey(), (player, click) -> {
-					String clickType = getCommandsKey(click);
-
-					// Bedrock clients send a single kind of click, so any click opens the preview, which has
-					// its own select button
-					if (Toolkit.isBedrockPlayer(player) &&
-							resources.getMenu().contains(itemPath + ".Commands.Right-Click")) {
-						clickType = "Right-Click";
-					}
-
+					// Bedrock clients send a single kind of click, so any click runs the left click commands
+					String clickType = Toolkit.isBedrockPlayer(player) ? "Left-Click" : getCommandsKey(click);
 					if (clickType == null) {
 						return;
 					}
