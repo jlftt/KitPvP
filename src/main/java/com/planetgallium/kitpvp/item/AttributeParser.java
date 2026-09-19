@@ -168,9 +168,9 @@ public class AttributeParser {
     }
 
     private static void setUnbreakable(ItemStack item) throws InvocationTargetException, IllegalAccessException, NoSuchMethodException {
-        if (Toolkit.versionToNumber() <= 114) {
-            ItemMeta meta = item.getItemMeta();
+        ItemMeta meta = item.getItemMeta();
 
+        if (Toolkit.versionToNumber() <= 114) {
             Method spigotMethod = meta.getClass().getMethod("spigot");
             spigotMethod.setAccessible(true);
 
@@ -181,9 +181,11 @@ public class AttributeParser {
             setUnbreakableMethod.setAccessible(true);
 
             setUnbreakableMethod.invoke(spigotInstance, true);
-        } else if (Toolkit.versionToNumber() > 114) {
-            item.getItemMeta().setUnbreakable(true);
+        } else {
+            meta.setUnbreakable(true);
         }
+
+        item.setItemMeta(meta);
     }
 
     private static ItemStack setEffectsFromPath(ItemStack item, Resource resource, String path) {

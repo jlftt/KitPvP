@@ -3,6 +3,8 @@ package com.planetgallium.kitpvp.util;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import com.cryptomorin.xseries.XMaterial;
 import com.cryptomorin.xseries.XPotion;
@@ -116,39 +118,26 @@ public class Toolkit {
 				.replace(replaceFrom, replaceTo);
 	}
  	
- 	public static int versionToNumber() {
-		String version = Bukkit.getVersion();
+ 	private static Integer cachedVersionNumber;
 
-		if (version.contains("1.8")) {
-			return 18;
-		} else if (version.contains("1.9")) {
-			return 19;
-		} else if (version.contains("1.10")) {
-			return 110;
-		} else if (version.contains("1.11")) {
-			return 111;
-		} else if (version.contains("1.12")) {
-			return 112;
-		} else if (version.contains("1.13")) {
-			return 113;
-		} else if (version.contains("1.14")) {
-			return 114;
-		} else if (version.contains("1.15")) {
-			return 115;
-		} else if (version.contains("1.16")) {
-			return 116;
-		} else if (version.contains("1.17")) {
-			return 117;
-		} else if (version.contains("1.18")) {
-			return 118;
-		} else if (version.contains("1.19")) {
-			return 119;
-		} else if (version.contains("1.20")) {
-			return 120;
-		} else if (version.contains("1.21")) {
-			return 121;
+ 	// Returns 18 for 1.8, 112 for 1.12, 121 for 1.21.x, or 500 for unknown/newer versions.
+ 	// Parses the exact minor version so that e.g. "1.21.11" is not mistaken for 1.11.
+ 	public static int versionToNumber() {
+		if (cachedVersionNumber != null) {
+			return cachedVersionNumber;
 		}
- 		return 500;
+
+		int number = 500;
+		Matcher matcher = Pattern.compile("^1\\.(\\d+)").matcher(Bukkit.getBukkitVersion());
+		if (matcher.find()) {
+			int minor = Integer.parseInt(matcher.group(1));
+			if (minor >= 8 && minor <= 21) {
+				number = Integer.parseInt("1" + minor);
+			}
+		}
+
+		cachedVersionNumber = number;
+ 		return number;
  	}
  	
  	public static List<String> colorizeList(List<String> list) {
