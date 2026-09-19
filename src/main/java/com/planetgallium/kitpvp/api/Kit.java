@@ -5,6 +5,7 @@ import com.planetgallium.kitpvp.util.Cooldown;
 import com.planetgallium.kitpvp.util.Resource;
 import com.planetgallium.kitpvp.util.Toolkit;
 import org.bukkit.Bukkit;
+import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.potion.PotionEffect;
@@ -102,7 +103,7 @@ public class Kit {
         boolean addOverflowItems = (Boolean) options.get("AddOverflowItemsOnKit");
 
         if (kitHelmet != null) {
-            if (player.getInventory().getHelmet() == null) {
+            if (isEmpty(player.getInventory().getHelmet())) {
                 player.getInventory().setHelmet(kitHelmet);
             } else {
                 overflowItems.add(kitHelmet);
@@ -110,7 +111,7 @@ public class Kit {
         }
 
         if (kitChestplate != null) {
-            if (player.getInventory().getChestplate() == null) {
+            if (isEmpty(player.getInventory().getChestplate())) {
                 player.getInventory().setChestplate(kitChestplate);
             } else {
                 overflowItems.add(kitChestplate);
@@ -118,7 +119,7 @@ public class Kit {
         }
 
         if (kitLeggings != null) {
-            if (player.getInventory().getLeggings() == null) {
+            if (isEmpty(player.getInventory().getLeggings())) {
                 player.getInventory().setLeggings(kitLeggings);
             } else {
                 overflowItems.add(kitLeggings);
@@ -126,7 +127,7 @@ public class Kit {
         }
 
         if (kitBoots != null) {
-            if (player.getInventory().getBoots() == null) {
+            if (isEmpty(player.getInventory().getBoots())) {
                 player.getInventory().setBoots(kitBoots);
             } else {
                 overflowItems.add(kitBoots);
@@ -138,7 +139,7 @@ public class Kit {
         for (int i = 0; i < 36; i++) {
             if (addOverflowItems) {
                 // if kit wants to put an item in slot i, but slot i in player inventory is already taken
-                if (inventory.containsKey(i) && player.getInventory().getItem(i) != null) {
+                if (inventory.containsKey(i) && !isEmpty(player.getInventory().getItem(i))) {
                     overflowItems.add(inventory.get(i)); // add kit item to overflow items
                     continue; // ignore this kit item, will be accounted for with giveOverflowItems
                 }
@@ -159,7 +160,7 @@ public class Kit {
 
         if (fill != null) {
             for (int i = 0; i < 36; i++) {
-                if (player.getInventory().getItem(i) == null) {
+                if (isEmpty(player.getInventory().getItem(i))) {
                     player.getInventory().setItem(i, fill);
                 }
             }
@@ -168,9 +169,14 @@ public class Kit {
         effects.stream().forEach(effect -> player.addPotionEffect(effect));
     }
 
+    // Modern Paper returns an AIR stack instead of null for empty slots
+    private static boolean isEmpty(ItemStack item) {
+        return item == null || item.getType() == Material.AIR;
+    }
+
     private void giveOverflowItems(Player p, List<ItemStack> overflowItems) {
         for (int i = 0; i < 36; i++) {
-            if (p.getInventory().getItem(i) == null) { // if empty slot found
+            if (isEmpty(p.getInventory().getItem(i))) { // if empty slot found
                 if (overflowItems.size() >= 1) {
                     p.getInventory().setItem(i, overflowItems.get(0));
                     overflowItems.remove(0);
