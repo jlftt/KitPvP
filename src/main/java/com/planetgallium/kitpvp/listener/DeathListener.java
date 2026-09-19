@@ -10,6 +10,7 @@ import org.bukkit.Sound;
 import org.bukkit.World;
 import org.bukkit.entity.*;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
@@ -19,6 +20,7 @@ import org.bukkit.event.player.PlayerRespawnEvent;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 import org.bukkit.scheduler.BukkitRunnable;
+import org.bukkit.util.Vector;
 
 import com.planetgallium.kitpvp.Game;
 import com.planetgallium.kitpvp.game.Arena;
@@ -37,6 +39,109 @@ public class DeathListener implements Listener {
 		this.arena = plugin.getArena();
 		this.resources = plugin.getResources();
 		this.config = resources.getConfig();
+	}
+
+	/**
+	 * With Arena.InstantRespawn the player never actually dies: the lethal hit is cancelled and they are sent
+	 * back to spawn in the same tick, so there is no death screen, no death animation and no waiting at all.
+	 */
+	@EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+	public void onLethalDamage(EntityDamageEvent e) {
+		if (!config.getBoolean("Arena.InstantRespawn") || !(e.getEntity() instanceof Player)) {
+			return;
+		}
+
+		Player victim = (Player) e.getEntity();
+
+		if (!Toolkit.inArena(victim) || victim.getGameMode() == GameMode.SPECTATOR || victim.isDead()) {
+			return;
+		}
+
+		if (victim.getHealth() - e.getFinalDamage() > 0) {
+			return; // survivable
+		}
+
+		e.setCancelled(true);
+		killWithoutDying(victim, e);
+	}
+
+	private void killWithoutDying(Player victim, EntityDamageEvent lethalDamage) {
+		Player killer = resolveKiller(victim, lethalDamage);
+		Location deathLocation = victim.getLocation();
+
+		CacheManager.getPotionSwitcherUsers().remove(victim.getName());
+
+		broadcast(victim.getWorld(), getDeathMessage(victim, killer, getDeathMessageType(killer, lethalDamage)));
+
+		arena.getStats().addToStat("deaths", victim.getName(), 1);
+		arena.getStats().removeExperience(victim.getName(),
+				resources.getLevels().getInt("Levels.Options.Experience-Taken-On-Death"));
+
+		arena.getKillStreaks().handleKill(killer, victim);
+
+		if (killer != null && !killer.getName().equals(victim.getName())) {
+			creditWithKill(victim, killer);
+			plugin.getSoupListener().giveSoupRewardIfEnabled(killer);
+		}
+
+		if (config.getBoolean("Arena.DeathParticles")) {
+			victim.getWorld().playEffect(deathLocation.clone().add(0.0D, 1.0D, 0.0D), Effect.STEP_SOUND, 152);
+		}
+
+		Toolkit.runCommands(victim, config.getStringList("Death.Commands"), "%victim%", victim.getName());
+		broadcast(victim.getWorld(), config.fetchString("Death.Sound.Sound"), config.getInt("Death.Sound.Pitch"));
+
+		// Back to spawn right away, in this same tick
+		arena.removePlayer(victim);
+		doClearInventoryOnRespawnIfEnabled(victim);
+
+		victim.setFireTicks(0);
+		victim.setVelocity(new Vector(0, 0, 0));
+		victim.setNoDamageTicks(20);
+
+		arena.addPlayer(victim, true, config.getBoolean("Arena.GiveItemsOnRespawn"));
+		victim.setHealth(Toolkit.getMaxHealth(victim));
+
+		Toolkit.runCommands(victim, config.getStringList("Respawn.Commands"), "none", "none");
+	}
+
+	// The player that gets the kill: whoever dealt the lethal hit, or the last player who hit the victim
+	private Player resolveKiller(Player victim, EntityDamageEvent lethalDamage) {
+		if (lethalDamage instanceof EntityDamageByEntityEvent) {
+			Entity damager = ((EntityDamageByEntityEvent) lethalDamage).getDamager();
+
+			if (damager instanceof Player) {
+				return (Player) damager;
+			}
+
+			if (damager instanceof Projectile && ((Projectile) damager).getShooter() instanceof Player) {
+				return (Player) ((Projectile) damager).getShooter();
+			}
+
+			if (damager.getType() == EntityType.PRIMED_TNT && damager.getCustomName() != null) {
+				return Toolkit.getPlayer(victim.getWorld(), damager.getCustomName());
+			}
+		}
+
+		String lastHitterName = arena.getHitCache().get(victim.getName());
+		return lastHitterName != null ? Toolkit.getPlayer(victim.getWorld(), lastHitterName) : null;
+	}
+
+	private String getDeathMessageType(Player killer, EntityDamageEvent lethalDamage) {
+		DamageCause cause = lethalDamage.getCause();
+
+		if (killer != null) {
+			return cause == DamageCause.PROJECTILE ? "Shot" : "Player";
+		} else if (cause == DamageCause.VOID) {
+			return "Void";
+		} else if (cause == DamageCause.FALL) {
+			return "Fall";
+		} else if (cause == DamageCause.FIRE || cause == DamageCause.FIRE_TICK || cause == DamageCause.LAVA) {
+			return "Fire";
+		} else if (cause == DamageCause.BLOCK_EXPLOSION || cause == DamageCause.ENTITY_EXPLOSION) {
+			return "Explosion";
+		}
+		return "Unknown";
 	}
 
 	@EventHandler
