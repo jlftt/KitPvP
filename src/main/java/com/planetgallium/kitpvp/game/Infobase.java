@@ -4,6 +4,7 @@ import com.planetgallium.database.*;
 import com.planetgallium.database.Record;
 import com.planetgallium.kitpvp.Game;
 import com.planetgallium.kitpvp.util.*;
+import org.bukkit.Bukkit;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
 
@@ -137,6 +138,14 @@ public class Infobase {
             return CacheManager.getUUIDCache().get(username);
         }
 
+        // The name may differ from the one cached on join (e.g. Floodgate prefixes Bedrock names)
+        Player onlinePlayer = Bukkit.getPlayerExact(username);
+        if (onlinePlayer != null) {
+            String uuid = onlinePlayer.getUniqueId().toString();
+            CacheManager.getUUIDCache().put(username, uuid);
+            return uuid;
+        }
+
         if (verifyTableExists("stats")) {
             Table stats = database.getTable("stats");
 
@@ -196,6 +205,11 @@ public class Infobase {
     }
 
     public void setData(String tableName, String identifier, Object data, DataType type, String username) {
+        if (usernameToUUID(username) == null) {
+            System.out.printf("[Database] Failed to set data; unknown player %s\n", username);
+            return;
+        }
+
         if (verifyTableExists(tableName)) {
             Table table = database.getTable(tableName);
 
@@ -212,6 +226,11 @@ public class Infobase {
     }
 
     public void setStatsData(String username, PlayerData playerData) {
+        if (usernameToUUID(username) == null) {
+            System.out.printf("[Database] Failed to save stats; unknown player %s\n", username);
+            return;
+        }
+
         if (verifyTableExists("stats")) {
             Table statsTable = database.getTable("stats");
             Field uuidField = uuidField("username", username);
@@ -246,6 +265,10 @@ public class Infobase {
     }
 
     public Object getData(String tableName, String identifier, String username) {
+        if (usernameToUUID(username) == null) {
+            return null;
+        }
+
         if (verifyTableExists(tableName)) {
             Table table = database.getTable(tableName);
             Record record = table.getRecord(uuidField("username", username));
@@ -272,7 +295,14 @@ public class Infobase {
         if (verifyTableExists("stats")) {
             Table statsTable = database.getTable("stats");
 
+            if (usernameToUUID(username) == null) {
+                return playerData;
+            }
+
             Record playerRecord = statsTable.getRecord(uuidField("username", username));
+            if (playerRecord == null) {
+                return playerData;
+            }
             return recordToPlayerData(playerRecord);
         }
         return playerData;
