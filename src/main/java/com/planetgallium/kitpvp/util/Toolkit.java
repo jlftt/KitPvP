@@ -233,6 +233,15 @@ public class Toolkit {
 
 	}
 
+	// Kit and ability permissions (kp.kit.*, kp.ability.*) are skipped when Other.RequireKitPermissions is false
+	public static boolean hasKitPermission(Player player, String permission) {
+		Resource config = Game.getInstance().getResources().getConfig();
+		if (config.contains("Other.RequireKitPermissions") && !config.getBoolean("Other.RequireKitPermissions")) {
+			return true;
+		}
+		return player.hasPermission(permission);
+	}
+
 	public static int getPermissionAmount(Player player, String permissionPrefix, int defaultValue) {
 //		String permissionPrefix = "some.permission.here.";
 		if (!player.isOp()) {

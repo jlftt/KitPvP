@@ -131,6 +131,7 @@ Arena:
   GameModeOnSpawn: SURVIVAL
 Other:
   AutomaticallyAddKitToMenu: true
+  RequireKitPermissions: true
 Spawn:
   Time: 5
   Enabled: true

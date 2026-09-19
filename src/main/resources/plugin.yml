@@ -19,3 +19,21 @@ commands:
      description: View all available kits.
    cstats:
      description: View your stats.
+# Basic player features are granted to everyone by default
+permissions:
+   kp.command.kits:
+     default: true
+   kp.command.menu:
+     default: true
+   kp.command.preview:
+     default: true
+   kp.command.stats:
+     default: true
+   kp.command.spawn:
+     default: true
+   kp.command.clear:
+     default: true
+   kp.soupreturn:
+     default: true
+   kp.arrowreturn:
+     default: true

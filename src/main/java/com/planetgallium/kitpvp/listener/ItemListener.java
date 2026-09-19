@@ -170,7 +170,7 @@ public class ItemListener implements Listener {
 				abilities.fetchString("Abilities." + kitName + ".Item.Name"))) {
 			String abilityPermission = "kp.ability." + kitName.toLowerCase();
 
-			if (p.hasPermission(abilityPermission)) {
+			if (Toolkit.hasKitPermission(p, abilityPermission)) {
 				if (config.getBoolean("Arena.AbilitiesRequireKit") && !arena.getKits().playerHasKit(p.getName())) {
 					p.sendMessage(resources.getMessages().fetchString("Messages.Error.Kit"));
 					return false;
@@ -465,7 +465,7 @@ public class ItemListener implements Listener {
 		if (e.getEntity() instanceof Player && Toolkit.inArena(e.getEntity())) {
 			Player p = (Player) e.getEntity();
 
-			if (!p.hasPermission("kp.ability.archer")) {
+			if (!Toolkit.hasKitPermission(p, "kp.ability.archer")) {
 				return;
 			}
 

@@ -204,7 +204,7 @@ public class Kits {
             return;
         }
 
-        if (!p.hasPermission(kit.getPermission())) {
+        if (!Toolkit.hasKitPermission(p, kit.getPermission())) {
             p.sendMessage(messages.fetchString("Messages.General.Permission")
                     .replace("%permission%", kit.getPermission()));
             return;

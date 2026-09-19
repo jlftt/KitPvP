@@ -33,7 +33,7 @@ public class AbilityListener implements Listener {
 		Ability ability = e.getAbility();
 
 		String abilityPermission = "kp.ability." + ability.getName().toLowerCase();
-		if (!p.hasPermission(abilityPermission)) {
+		if (!Toolkit.hasKitPermission(p, abilityPermission)) {
 			p.sendMessage(resources.getMessages().fetchString("Messages.General.Permission")
 					.replace("%permission%", abilityPermission));
 			return;
