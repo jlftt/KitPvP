@@ -52,6 +52,16 @@ public class Arena {
 		this.menus = new Menus(resources);
 	}
 	
+	// Game mode applied when a player joins or respawns in the arena (Arena.GameModeOnSpawn, SURVIVAL by default)
+	private GameMode getSpawnGameMode() {
+		if (config.contains("Arena.GameModeOnSpawn")) {
+			try {
+				return GameMode.valueOf(config.fetchString("Arena.GameModeOnSpawn").trim().toUpperCase());
+			} catch (IllegalArgumentException ignored) {}
+		}
+		return GameMode.SURVIVAL;
+	}
+
 	public void addPlayer(Player p, boolean toSpawn, boolean giveItems) {
 		cooldowns.clearPlayerAbilityCooldowns(p.getName());
 
@@ -71,7 +81,7 @@ public class Arena {
 			p.setFireTicks(0);
 		}
 
-		p.setGameMode(GameMode.SURVIVAL);
+		p.setGameMode(getSpawnGameMode());
 
 		if (config.getBoolean("Arena.ResetMaxHealthOnDeath")) {
 			Toolkit.setMaxHealth(p, 20);
