@@ -54,10 +54,10 @@ Menu:
       - '&6Ability: &7Rechargeable Speed Boost'
       - ' '
       - '&7- Iron Sword'
-      - '&7- Diamond Helmet'
+      - '&7- Iron Helmet'
       - '&7- Diamond Chestplate'
       - '&7- Diamond Leggings'
-      - '&7- Diamond Boots'
+      - '&7- Iron Boots'
       - ' '
       - '&eLeft-click to select.'
       - '&eRight-click to preview.'
@@ -173,7 +173,7 @@ Menu:
       Lore:
       - '&6Ability: &73 Vanish Stars'
       - ' '
-      - '&7- Wooden Sword'
+      - '&7- Iron Sword'
       - '&7- Leather Helmet'
       - '&7- Chain Chestplate'
       - '&7- Chain Leggings'
@@ -209,7 +209,7 @@ Menu:
       Name: '&a&lVampire Kit'
       Material: FERMENTED_SPIDER_EYE
       Lore:
-      - '&6Ability: &73 Blood Suckers'
+      - '&6Ability: &75 Blood Suckers'
       - ' '
       - '&7- Iron Sword'
       - '&7- Leather Helmet'
