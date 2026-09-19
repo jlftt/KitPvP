@@ -7,31 +7,26 @@ import com.cryptomorin.xseries.XMaterial;
 import com.planetgallium.kitpvp.api.Kit;
 import com.planetgallium.kitpvp.util.CacheManager;
 import com.planetgallium.kitpvp.util.Resources;
+import com.planetgallium.kitpvp.util.Toolkit;
 import org.bukkit.entity.Player;
-
-import com.planetgallium.kitpvp.util.Menu;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.potion.PotionEffect;
 
 public class PreviewMenu {
 
-	private Menu create(Kit kit, Resources resources) {
-		String previewMenuTitle = resources.getMessages().fetchString("Messages.Other.PreviewMenuTitle")
-				.replace("%kit%", kit.getName());
-		Menu previewMenu = new Menu(previewMenuTitle, new PreviewHolder(), 54);
+	private static final int SIZE = 54;
+	private static final int BACK_ARROW_SLOT = 8;
+
+	private ItemStack[] buildContents(Kit kit, Resources resources) {
+		ItemStack[] contents = new ItemStack[SIZE];
 
 		//			ARMOR			//
 
-		if (kit.getHelmet() != null)
-			previewMenu.setItem(kit.getHelmet(), 0);
-
-		if (kit.getChestplate() != null)
-			previewMenu.setItem(kit.getChestplate(), 1);
-
-		if (kit.getLeggings() != null)
-			previewMenu.setItem(kit.getLeggings(), 2);
-
-		if (kit.getBoots() != null)
-			previewMenu.setItem(kit.getBoots(), 3);
+		contents[0] = kit.getHelmet();
+		contents[1] = kit.getChestplate();
+		contents[2] = kit.getLeggings();
+		contents[3] = kit.getBoots();
 
 		//		POTION EFFECTS		//
 
@@ -41,23 +36,23 @@ public class PreviewMenu {
 			String type = effect.getType().getName();
 			int amplifierNonZeroBased = effect.getAmplifier() + 1;
 			int durationSeconds = effect.getDuration() / 20;
+			boolean infinite = effect.getDuration() < 0 || durationSeconds > 10000;
 
-			effectsLore.add("&7- " + type + " " + amplifierNonZeroBased + " (" + (durationSeconds > 10000 ? "Infinite" : (durationSeconds + "s")) + ")");
+			effectsLore.add("&7- " + type + " " + amplifierNonZeroBased + " (" + (infinite ? "Infinite" : (durationSeconds + "s")) + ")");
 		}
 
 		if (kit.getEffects().size() == 0) {
 			effectsLore.add("&7None");
 		}
 
-		String menuPotionEffectsItemName =
-				resources.getMessages().fetchString("Messages.Other.PreviewMenuPotionEffectsItemName");
-		previewMenu.addItem(menuPotionEffectsItemName, XMaterial.BREWING_STAND.parseMaterial(), effectsLore, 4);
+		contents[4] = buildItem(resources.getMessages().fetchString("Messages.Other.PreviewMenuPotionEffectsItemName"),
+				XMaterial.BREWING_STAND.parseItem(), effectsLore);
 
 		//			HOTBAR			//
 
 		for (int i = 0; i < 9; i++) {
 			if (kit.getInventory().containsKey(i)) {
-				previewMenu.setItem(kit.getInventory().get(i), (45 + i));
+				contents[45 + i] = kit.getInventory().get(i);
 			}
 		}
 
@@ -65,34 +60,55 @@ public class PreviewMenu {
 
 		for (int i = 9; i < 36; i++) {
 			if (kit.getInventory().containsKey(i)) {
-				previewMenu.setItem(kit.getInventory().get(i), (9 + i));
+				contents[9 + i] = kit.getInventory().get(i);
 			}
 		}
 
 		//			FILL			//
 
 		if (kit.getFill() != null) {
-			for (int i = 18; i < 54; i++) {
-				if (previewMenu.getSlot(i) == null) {
-					previewMenu.setItem(kit.getFill(), i);
+			for (int i = 18; i < SIZE; i++) {
+				if (contents[i] == null) {
+					contents[i] = kit.getFill();
 				}
 			}
 		}
 
-		String menuBackArrowItemName =
-				resources.getMessages().fetchString("Messages.Other.PreviewMenuBackArrowItemName");
-		previewMenu.addItem(menuBackArrowItemName, XMaterial.ARROW.parseMaterial(), new ArrayList<>(), 8);
+		contents[BACK_ARROW_SLOT] = buildItem(resources.getMessages().fetchString("Messages.Other.PreviewMenuBackArrowItemName"),
+				XMaterial.ARROW.parseItem(), new ArrayList<>());
 
-		CacheManager.getPreviewMenuCache().put(kit.getName(), previewMenu);
+		return contents;
+	}
 
-		return previewMenu;
+	private static ItemStack buildItem(String name, ItemStack item, List<String> lore) {
+		ItemMeta meta = item.getItemMeta();
+
+		if (meta != null) {
+			meta.setDisplayName(name);
+			meta.setLore(Toolkit.colorizeList(lore));
+			item.setItemMeta(meta);
+		}
+		return item;
 	}
 
 	public void open(Player p, Kit kit, Resources resources) {
-		Menu previewMenu = CacheManager.getPreviewMenuCache().containsKey(kit.getName()) ?
-				CacheManager.getPreviewMenuCache().get(kit.getName()) : create(kit, resources);
+		ItemStack[] contents = CacheManager.getPreviewMenuCache()
+				.computeIfAbsent(kit.getName(), kitName -> buildContents(kit, resources));
+		String title = resources.getMessages().fetchString("Messages.Other.PreviewMenuTitle")
+				.replace("%kit%", kit.getName());
 
-		previewMenu.openMenu(p);
+		new Instance(title, contents, resources).open(p);
 	}
-	
+
+	private static class Instance extends KitPvPMenu {
+
+		Instance(String title, ItemStack[] contents, Resources resources) {
+			createInventory(title, SIZE, contents);
+
+			setButton(BACK_ARROW_SLOT, (player, click) ->
+					runCommandsThenClose(player, resources.getConfig().getStringList("PreviewMenuBackArrowCommands")));
+		}
+
+	}
+
 }

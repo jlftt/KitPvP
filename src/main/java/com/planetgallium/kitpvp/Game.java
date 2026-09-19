@@ -19,6 +19,9 @@ import com.planetgallium.kitpvp.game.Arena;
 import com.planetgallium.kitpvp.listener.*;
 import com.planetgallium.kitpvp.util.*;
 
+import java.util.HashMap;
+import java.util.Map;
+
 public class Game extends JavaPlugin implements Listener {
 	
 	private static Game instance;
@@ -144,10 +147,13 @@ public class Game extends JavaPlugin implements Listener {
 
 	@Override
 	public void onDisable() {
-		// for players that haven't died and had their stats pushed
-//		for (String username : CacheManager.getStatsCache().keySet()) {
-//			arena.getStats().pushCachedStatsToDatabase(username);
-//		}
+		// Stats are otherwise only saved on death or quit, and quit events on shutdown arrive after plugins are
+		// disabled, so save what online players earned since their last death synchronously here
+		if (database != null) {
+			for (Map.Entry<String, PlayerData> entry : new HashMap<>(CacheManager.getStatsCache()).entrySet()) {
+				database.setStatsData(entry.getKey(), entry.getValue());
+			}
+		}
 	}
 
 	public boolean hasPlaceholderAPI() { return hasPlaceholderAPI; }

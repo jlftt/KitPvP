@@ -215,17 +215,20 @@ public class Toolkit {
 		return Toolkit.translate(text);
 	}
 
-	// TODO: eventually merge the below two methods into one
+	// Highest numeric value among granted "prefix.<number>" permissions; ignores negated ones and non-numbers
+	// such as "prefix.*", which used to throw NumberFormatException
 	public static double getPermissionAmountDouble(Player player, String permissionPrefix, double defaultValue) {
 		double highestPermissionValue = 0.0;
 		for (PermissionAttachmentInfo attachmentInfo : player.getEffectivePermissions()) {
 			String permission = attachmentInfo.getPermission();
-			if (permission.startsWith(permissionPrefix)) {
-				// strips from some.permission.49 to just 49
-				double permissionValue = Double.parseDouble(permission.substring(permissionPrefix.length()));
-				if (permissionValue > highestPermissionValue) {
-					highestPermissionValue = permissionValue;
-				}
+			if (attachmentInfo.getValue() && permission.startsWith(permissionPrefix)) {
+				try {
+					// strips from some.permission.49 to just 49
+					double permissionValue = Double.parseDouble(permission.substring(permissionPrefix.length()));
+					if (permissionValue > highestPermissionValue) {
+						highestPermissionValue = permissionValue;
+					}
+				} catch (NumberFormatException ignored) {}
 			}
 		}
 
@@ -244,18 +247,12 @@ public class Toolkit {
 
 	public static int getPermissionAmount(Player player, String permissionPrefix, int defaultValue) {
 //		String permissionPrefix = "some.permission.here.";
-		if (!player.isOp()) {
-			for (PermissionAttachmentInfo attachmentInfo : player.getEffectivePermissions()) {
-				if (attachmentInfo.getPermission().startsWith(permissionPrefix)) {
-					String permission = attachmentInfo.getPermission();
-					return Integer.parseInt(permission.substring(permission.lastIndexOf(".") + 1));
-				}
-			}
-		} else {
+		if (player.isOp()) {
 			return Integer.MAX_VALUE;
 		}
 
-		return defaultValue;
+		double highestPermissionValue = getPermissionAmountDouble(player, permissionPrefix, defaultValue);
+		return (int) highestPermissionValue;
 	}
 
 	public static String translate(String s) {
@@ -497,7 +494,15 @@ public class Toolkit {
 			this.equipmentSlot = equipmentSlot;
 		}
 
+		// Falls back to adding the item to the inventory if the slot was filled in the meantime
 		public void placeItemInSlot(Player p, ItemStack item) {
+			ItemStack current = usesEquipmentSlot ? p.getInventory().getItem(equipmentSlot) :
+					p.getInventory().getItem(heldItemSlot);
+			if (current != null && current.getType() != Material.AIR) {
+				p.getInventory().addItem(item);
+				return;
+			}
+
 			if (usesEquipmentSlot) {
 				p.getInventory().setItem(equipmentSlot, item);
 			} else {

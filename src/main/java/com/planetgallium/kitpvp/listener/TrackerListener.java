@@ -9,6 +9,11 @@ import org.bukkit.event.player.PlayerItemHeldEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.scheduler.BukkitRunnable;
+import org.bukkit.scheduler.BukkitTask;
+
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
 
 import com.planetgallium.kitpvp.Game;
 import com.planetgallium.kitpvp.util.Toolkit;
@@ -18,6 +23,7 @@ public class TrackerListener implements Listener {
 	private final Game plugin;
 	private final Arena arena;
 	private final Resources resources;
+	private final Map<UUID, BukkitTask> trackerTasks = new HashMap<>();
 	
 	public TrackerListener(Game plugin) {
 		this.plugin = plugin;
@@ -35,8 +41,13 @@ public class TrackerListener implements Listener {
 		ItemStack itemHeld = p.getInventory().getItem(e.getNewSlot());
 
 		if (itemHeld != null && Toolkit.hasMatchingMaterial(itemHeld, "COMPASS")) {
+			// one tracking task per player, instead of a new one every time the compass is selected
+			BukkitTask previousTask = trackerTasks.remove(p.getUniqueId());
+			if (previousTask != null) {
+				previousTask.cancel();
+			}
 
-			new BukkitRunnable() {
+			BukkitTask task = new BukkitRunnable() {
 				@Override
 				public void run() {
 					// if the player using the compass leaves the server or no longer has a kit
@@ -63,6 +74,7 @@ public class TrackerListener implements Listener {
 					updateTrackingCompass(p, itemHeld, nearestPlayerData);
 				}
 			}.runTaskTimer(plugin, 0L, 20L);
+			trackerTasks.put(p.getUniqueId(), task);
 		}
 	}
 

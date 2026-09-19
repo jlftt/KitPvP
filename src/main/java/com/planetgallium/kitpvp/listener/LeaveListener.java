@@ -33,7 +33,7 @@ public class LeaveListener implements Listener {
 		if (Toolkit.inArena(e.getFrom())) { // if they left from a kitpvp arena
 			Player p = e.getPlayer();
 
-			if (plugin.getConfig().getBoolean("Arena.ClearInventoryOnLeave")) {
+			if (plugin.getResources().getConfig().getBoolean("Arena.ClearInventoryOnLeave")) {
 				p.getInventory().clear();
 				p.getInventory().setArmorContents(null);
 			}

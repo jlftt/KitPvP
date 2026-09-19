@@ -57,7 +57,7 @@ public class Stats {
     public void addExperience(Player p, int experienceToAdd) {
         if (levels.getBoolean("Levels.Levels.Enabled")) {
             int currentExperience = getStat("experience", p.getName());
-            int newExperience = applyPossibleXPMultiplier(p, currentExperience + experienceToAdd);
+            int newExperience = currentExperience + applyPossibleXPMultiplier(p, experienceToAdd);
             setStat("experience", p.getName(), newExperience);
             if (getStat("experience", p.getName()) >= getRegularOrRelativeNeededExperience(p.getName())) {
                 levelUp(p);

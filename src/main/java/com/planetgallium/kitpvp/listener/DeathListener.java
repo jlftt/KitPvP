@@ -53,14 +53,17 @@ public class DeathListener implements Listener {
 
 			CacheManager.getPotionSwitcherUsers().remove(victim.getName());
 
-			respawnPlayer(victim);
+			// Credit the kill and record the death before respawnPlayer, which clears the victim's hit cache
+			// and pushes their stats to the database
 			setDeathMessage(victim);
 
 			arena.getStats().addToStat("deaths", victim.getName(), 1);
 			arena.getStats().removeExperience(victim.getName(),
 					resources.getLevels().getInt("Levels.Options.Experience-Taken-On-Death"));
 
-			if (config.getBoolean("Arena.DeathParticle")) {
+			respawnPlayer(victim);
+
+			if (config.getBoolean("Arena.DeathParticles")) {
 				victim.getWorld().playEffect(victim.getLocation().add(0.0D, 1.0D, 0.0D), Effect.STEP_SOUND, 152);
 			}
 
@@ -168,7 +171,7 @@ public class DeathListener implements Listener {
 
 		DamageCause cause = victim.getLastDamageCause().getCause();
 
-		if (cause == DamageCause.PROJECTILE && getShooter(victim.getLastDamageCause()).getType() == EntityType.PLAYER) {
+		if (cause == DamageCause.PROJECTILE && getShooter(victim.getLastDamageCause()) instanceof Player) {
 			Player killer = (Player) getShooter(victim.getLastDamageCause());
 
 			broadcast(victim.getWorld(), getDeathMessage(victim, killer, "Shot"));
@@ -193,6 +196,7 @@ public class DeathListener implements Listener {
 			creditWithKill(victim, killer);
 
 		} else if ((cause == DamageCause.BLOCK_EXPLOSION || cause == DamageCause.ENTITY_EXPLOSION) &&
+				getExplodedEntity(victim.getLastDamageCause()) != null &&
 				getExplodedEntity(victim.getLastDamageCause()).getType() == EntityType.PRIMED_TNT) {
 			String bomberName = getExplodedEntity(victim.getLastDamageCause()).getCustomName();
 			Player killer = Toolkit.getPlayer(victim.getWorld(), bomberName);
@@ -218,21 +222,23 @@ public class DeathListener implements Listener {
 		}
 	}
 
+	// null when the projectile was fired by a dispenser or the damage did not come from a projectile
 	private Entity getShooter(EntityDamageEvent e) {
-		EntityDamageByEntityEvent shotEvent = (EntityDamageByEntityEvent) e;
-		Projectile damager = (Projectile) shotEvent.getDamager();
-
-		return (Entity) damager.getShooter();
+		if (e instanceof EntityDamageByEntityEvent) {
+			Entity damager = ((EntityDamageByEntityEvent) e).getDamager();
+			if (damager instanceof Projectile && ((Projectile) damager).getShooter() instanceof Entity) {
+				return (Entity) ((Projectile) damager).getShooter();
+			}
+		}
+		return null;
 	}
 
+	// null for block explosions (beds, respawn anchors), which are not caused by an entity
 	private Entity getExplodedEntity(EntityDamageEvent e) {
-//		if (e instanceof EntityDamageByBlockEvent) {
-//			EntityDamageByBlockEvent blownUpEvent2 = (EntityDamageByBlockEvent) e;
-//			return blownUpEvent2.getDamager();
-		/*} else if (e instanceof EntityDamageByEntityEvent) { */
-			EntityDamageByEntityEvent blownUpEvent = (EntityDamageByEntityEvent) e;
-			return blownUpEvent.getDamager();
-		/*}*/
+		if (e instanceof EntityDamageByEntityEvent) {
+			return ((EntityDamageByEntityEvent) e).getDamager();
+		}
+		return null;
 	}
 
 	private void creditWithKill(Player victim, Player killer) {

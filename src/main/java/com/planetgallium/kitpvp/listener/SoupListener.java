@@ -74,10 +74,11 @@ public class SoupListener implements Listener {
 			if (Toolkit.hasMatchingMaterial(Toolkit.getHandItemForInteraction(e), "MUSHROOM_STEW")) {
 				e.setCancelled(true);
 
-				if (p.getHealth() < 20.0) {
-					int soupBoost = plugin.getConfig().getInt("Soups.RegenAmount");
+				double maxHealth = Toolkit.getMaxHealth(p);
+				if (p.getHealth() < maxHealth) {
+					int soupBoost = config.getInt("Soups.RegenAmount");
 
-					p.setHealth(Math.min(p.getHealth() + (double) soupBoost, 20.0));
+					p.setHealth(Math.min(p.getHealth() + (double) soupBoost, maxHealth));
 
 					Toolkit.playSoundToPlayer(p, config.fetchString("Soups.Sound"),
 							config.getInt("Soups.Pitch"));

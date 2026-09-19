@@ -41,13 +41,20 @@ public class Cooldowns {
 		if (type instanceof Kit) {
 
 			Kit kit = (Kit) type;
-			if (kit.getCooldown() == null) return noCooldown;
+			if (kit.getCooldown() == null || kit.getCooldown().toSeconds() <= 0) return noCooldown;
 
-			Object timeLastUsedResult = database.getData(kit.getName() + "_cooldowns", "last_used", p.getName());
-			if (timeLastUsedResult != null) {
-				timeLastUsedSeconds = (int) timeLastUsedResult;
+			// A cooldown set during this session is only in the stats cache until it is pushed to the database
+			// on death or quit, so check the cache first
+			Map<String, Long> cachedKitCooldowns = stats.getOrCreateStatsCache(p.getName()).getKitCooldowns();
+			if (cachedKitCooldowns.containsKey(kit.getName())) {
+				timeLastUsedSeconds = cachedKitCooldowns.get(kit.getName()).intValue();
 			} else {
-				return noCooldown;
+				Object timeLastUsedResult = database.getData(kit.getName() + "_cooldowns", "last_used", p.getName());
+				if (timeLastUsedResult != null) {
+					timeLastUsedSeconds = (int) timeLastUsedResult;
+				} else {
+					return noCooldown;
+				}
 			}
 			actionCooldownSeconds = kit.getCooldown().toSeconds();
 

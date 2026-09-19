@@ -208,7 +208,7 @@ public class MainCommand implements CommandExecutor {
     private void executeReloadCommand(CommandSender sender) {
         resources.reload();
         CacheManager.clearCaches();
-//        arena.getMenus().getKitMenu().rebuildCache();
+        arena.getMenus().getKitMenu().invalidate();
         arena.getAbilities().rebuildCache();
 
         sender.sendMessage(messages.fetchString("Messages.Commands.Reload"));
@@ -373,6 +373,12 @@ public class MainCommand implements CommandExecutor {
 
             @Override
             public void run() {
+                if (!p.isOnline()) {
+                    spawnUsers.remove(p.getName());
+                    cancel();
+                    return;
+                }
+
                 time--;
 
                 if (time != 0) {

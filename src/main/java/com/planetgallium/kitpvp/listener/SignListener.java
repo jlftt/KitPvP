@@ -84,7 +84,12 @@ public class SignListener implements Listener {
 						e.setCancelled(true); // prevents sign editing on 1.20+
 						break;
 					} else if (mismatchedLines.size() == 1) { // one line (line with kit name or arena name) doesn't match
-						executeSign(p, signType, getWordDelta(mismatchedLines));
+						String wordDelta = getWordDelta(mismatchedLines);
+						if (wordDelta == null) {
+							continue; // not built from this sign type
+						}
+
+						executeSign(p, signType, wordDelta);
 						e.setCancelled(true); // prevents sign editing on 1.20+
 						break;
 					}
@@ -112,6 +117,11 @@ public class SignListener implements Listener {
 		String[] rawSignLineWords = rawSignLine.split(" ");
 		String[] rawConfigSignLineWords = rawConfigSignLine.split(" ");
 
+		// a different word count means the line was not built from this template
+		if (rawSignLineWords.length != rawConfigSignLineWords.length) {
+			return null;
+		}
+
 		for (int i = 0; i < rawConfigSignLineWords.length; i++) {
 			String rawConfigSignWord = rawConfigSignLineWords[i];
 			String rawSignLineWord = rawSignLineWords[i];
@@ -121,8 +131,8 @@ public class SignListener implements Listener {
 			}
 		}
 
-		// if too many words differ, sign is not a match, return null
-		return wordDelta.size() > 1 ? null : wordDelta.get(0);
+		// exactly one differing word is the kit or arena name; otherwise the sign is not a match
+		return wordDelta.size() == 1 ? wordDelta.get(0) : null;
 	}
 
 	private void executeSign(Player p, String type, String placeholder) {

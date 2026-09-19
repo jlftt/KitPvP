@@ -6,6 +6,7 @@ import com.planetgallium.kitpvp.game.Arena;
 import com.planetgallium.kitpvp.util.Resource;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import com.planetgallium.kitpvp.util.Toolkit;
@@ -24,7 +25,8 @@ public class HitListener implements Listener {
 		this.hitSound = XSound.parse(soundString);
 	}
 
-	@EventHandler
+	// Only hits that actually landed count towards kill credit (not ones blocked by a no-PvP region, for example)
+	@EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
 	public void onHit(EntityDamageByEntityEvent e) {
 		if (e.getEntity() instanceof Player && e.getDamager() instanceof Player) {
 			Player damager = (Player) e.getDamager();

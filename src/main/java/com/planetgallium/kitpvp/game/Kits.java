@@ -53,7 +53,7 @@ public class Kits {
     }
 
     private void automaticallyAddKitToMenu(Player fromPlayer, Kit kitToCreate) {
-        if (plugin.getConfig().getBoolean("Other.AutomaticallyAddKitToMenu")) {
+        if (resources.getConfig().getBoolean("Other.AutomaticallyAddKitToMenu")) {
 
             int nextAvailableMenuSlot = Toolkit.getNextAvailable(resources.getMenu(), "Menu.Items",
                     resources.getMenu().getInt("Menu.General.Size") - 1, true, -1);
@@ -79,7 +79,7 @@ public class Kits {
 
                 menuConfig.save();
                 menuConfig.load();
-//                arena.getMenus().getKitMenu().rebuildCache();
+                arena.getMenus().getKitMenu().invalidate();
             } else {
                 fromPlayer.sendMessage(messages.fetchString("Messages.Error.Menu"));
             }

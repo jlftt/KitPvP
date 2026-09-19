@@ -120,7 +120,7 @@ public class ItemListener implements Listener {
 					String itemPath = "Items." + identifier;
 
 					if (!config.getBoolean(itemPath + ".Enabled")) {
-						return;
+						continue;
 					}
 
 					String itemMaterialName = config.fetchString(itemPath + ".Material");
@@ -370,7 +370,7 @@ public class ItemListener implements Listener {
 						}
 
 						Toolkit.playSoundToPlayer(p, abilities.fetchString("Abilities.Witch.Sound.Sound"),
-								abilities.getInt("Abliities.Witch.Sound.Pitch"));
+								abilities.getInt("Abilities.Witch.Sound.Pitch"));
 
 						CacheManager.getPotionSwitcherUsers().add(p.getName());
 					}
@@ -382,7 +382,7 @@ public class ItemListener implements Listener {
 	private void thunderboltAbility(PlayerInteractEntityEvent e, Player damager, Player damagedPlayer,
 									ItemStack abilityItem) {
 		damager.getWorld().strikeLightningEffect(e.getRightClicked().getLocation());
-		damagedPlayer.damage(4.0);
+		damagedPlayer.damage(4.0, damager); // with a source, so a kill is credited to the ability user
 		damagedPlayer.setFireTicks(5 * 20);
 
 		useBuiltInAbilityItem(e, damager, damagedPlayer, abilityItem, "Thunderbolt");
@@ -390,11 +390,12 @@ public class ItemListener implements Listener {
 
 	private void vampireAbliity(PlayerInteractEntityEvent e, Player damager, Player damagedPlayer,
 								ItemStack abilityItem) {
-		damagedPlayer.damage(4.0);
+		damagedPlayer.damage(4.0, damager);
 		Toolkit.playSoundToPlayer(damagedPlayer, "ENTITY_GENERIC_DRINK", -1);
 
-		if (damager.getHealth() <= 16.0) {
-			damager.setHealth(damager.getHealth() + 4.0);
+		double maxHealth = Toolkit.getMaxHealth(damager);
+		if (damager.getHealth() <= maxHealth - 4.0) {
+			damager.setHealth(Math.min(damager.getHealth() + 4.0, maxHealth));
 			damager.addPotionEffect(new PotionEffect(PotionEffectType.SPEED, 20 * 2, 1));
 		}
 
@@ -421,7 +422,11 @@ public class ItemListener implements Listener {
 	private void hitBySnowball(Player damagedPlayer, Snowball snowball) {
 		if (snowball.getCustomName() != null && snowball.getCustomName().equals("bullet")) {
 			if (Toolkit.inArena(damagedPlayer) && arena.getKits().playerHasKit(damagedPlayer.getName())) {
-				damagedPlayer.damage(4.5);
+				if (snowball.getShooter() instanceof Player) {
+					damagedPlayer.damage(4.5, (Player) snowball.getShooter());
+				} else {
+					damagedPlayer.damage(4.5);
+				}
 			}
 		}
 	}
