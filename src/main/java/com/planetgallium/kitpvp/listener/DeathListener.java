@@ -42,8 +42,10 @@ public class DeathListener implements Listener {
 	}
 
 	/**
-	 * With Arena.InstantRespawn the player never actually dies: the lethal hit is cancelled and they are sent
-	 * back to spawn in the same tick, so there is no death screen, no death animation and no waiting at all.
+	 * With Arena.InstantRespawn the player never actually dies: the lethal hit is cancelled and a death event is
+	 * fired for them instead, so there is no death screen, no death animation and no waiting, while the rest of
+	 * the server (death messages, statistics, combat tag) still sees the kill. Everything else, including
+	 * sending the player back to spawn, is done by onDeath below.
 	 */
 	@EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
 	public void onLethalDamage(EntityDamageEvent e) {
@@ -61,48 +63,22 @@ public class DeathListener implements Listener {
 			return; // survivable
 		}
 
+		if (!DeathEvents.isSupported()) {
+			return; // let the player die for real, onDeath then respawns them immediately
+		}
+
+		Player killer = resolveKiller(victim, e);
+
 		e.setCancelled(true);
-		killWithoutDying(victim, e);
-	}
 
-	private void killWithoutDying(Player victim, EntityDamageEvent lethalDamage) {
-		Player killer = resolveKiller(victim, lethalDamage);
-		Location deathLocation = victim.getLocation();
-
-		CacheManager.getPotionSwitcherUsers().remove(victim.getName());
-
-		broadcast(victim.getWorld(), getDeathMessage(victim, killer, getDeathMessageType(killer, lethalDamage)));
-
-		arena.getStats().addToStat("deaths", victim.getName(), 1);
-		arena.getStats().removeExperience(victim.getName(),
-				resources.getLevels().getInt("Levels.Options.Experience-Taken-On-Death"));
-
-		arena.getKillStreaks().handleKill(killer, victim);
-
+		// The lethal hit was cancelled, so it never reached the hit cache that onDeath falls back on
 		if (killer != null && !killer.getName().equals(victim.getName())) {
-			creditWithKill(victim, killer);
-			plugin.getSoupListener().giveSoupRewardIfEnabled(killer);
+			arena.getHitCache().put(victim.getName(), killer.getName());
 		}
 
-		if (config.getBoolean("Arena.DeathParticles")) {
-			victim.getWorld().playEffect(deathLocation.clone().add(0.0D, 1.0D, 0.0D), Effect.STEP_SOUND, 152);
+		if (!DeathEvents.callDeathEvent(victim, e, killer)) {
+			e.setCancelled(false); // could not tell anyone, so let it be a normal death after all
 		}
-
-		Toolkit.runCommands(victim, config.getStringList("Death.Commands"), "%victim%", victim.getName());
-		broadcast(victim.getWorld(), config.fetchString("Death.Sound.Sound"), config.getInt("Death.Sound.Pitch"));
-
-		// Back to spawn right away, in this same tick
-		arena.removePlayer(victim);
-		doClearInventoryOnRespawnIfEnabled(victim);
-
-		victim.setFireTicks(0);
-		victim.setVelocity(new Vector(0, 0, 0));
-		victim.setNoDamageTicks(20);
-
-		arena.addPlayer(victim, true, config.getBoolean("Arena.GiveItemsOnRespawn"));
-		victim.setHealth(Toolkit.getMaxHealth(victim));
-
-		Toolkit.runCommands(victim, config.getStringList("Respawn.Commands"), "none", "none");
 	}
 
 	// The player that gets the kill: whoever dealt the lethal hit, or the last player who hit the victim
@@ -125,23 +101,6 @@ public class DeathListener implements Listener {
 
 		String lastHitterName = arena.getHitCache().get(victim.getName());
 		return lastHitterName != null ? Toolkit.getPlayer(victim.getWorld(), lastHitterName) : null;
-	}
-
-	private String getDeathMessageType(Player killer, EntityDamageEvent lethalDamage) {
-		DamageCause cause = lethalDamage.getCause();
-
-		if (killer != null) {
-			return cause == DamageCause.PROJECTILE ? "Shot" : "Player";
-		} else if (cause == DamageCause.VOID) {
-			return "Void";
-		} else if (cause == DamageCause.FALL) {
-			return "Fall";
-		} else if (cause == DamageCause.FIRE || cause == DamageCause.FIRE_TICK || cause == DamageCause.LAVA) {
-			return "Fire";
-		} else if (cause == DamageCause.BLOCK_EXPLOSION || cause == DamageCause.ENTITY_EXPLOSION) {
-			return "Explosion";
-		}
-		return "Unknown";
 	}
 
 	@EventHandler
@@ -279,6 +238,19 @@ public class DeathListener implements Listener {
 	private void instantlyRespawnPlayer(Player victim) {
 		arena.removePlayer(victim);
 		doClearInventoryOnRespawnIfEnabled(victim);
+
+		if (!victim.isDead()) {
+			// The hit that would have killed them was cancelled, so they can go back to spawn right now
+			victim.setFireTicks(0);
+			victim.setVelocity(new Vector(0, 0, 0));
+			victim.setNoDamageTicks(20); // a second of protection so they are not killed on arrival
+
+			arena.addPlayer(victim, true, config.getBoolean("Arena.GiveItemsOnRespawn"));
+			victim.setHealth(Toolkit.getMaxHealth(victim));
+
+			Toolkit.runCommands(victim, config.getStringList("Respawn.Commands"), "none", "none");
+			return;
+		}
 
 		new BukkitRunnable() {
 			@Override
