@@ -232,8 +232,11 @@ public class ItemListener implements Listener {
 			handLocation.setY(handLocation.getY() + 1.0);
 			Vector direction = handLocation.getDirection();
 
-			Entity entity = p.getWorld().spawn(handLocation, TNTPrimed.class);
+			TNTPrimed entity = p.getWorld().spawn(handLocation, TNTPrimed.class);
 			entity.setVelocity(direction.multiply(1.5));
+			// Without a source the explosion is anonymous: protection plugins cannot tell it apart
+			// from world damage, and the kill cannot be credited natively.
+			entity.setSource(p);
 			entity.setCustomName(p.getName());
 
 			e.setCancelled(true);
@@ -315,7 +318,8 @@ public class ItemListener implements Listener {
 			@Override
 			public void run() {
 				if (t != 0 && p.getGameMode() != GameMode.SPECTATOR && arena.getKits().playerHasKit(p.getName())) {
-					Entity entity = p.getWorld().spawn(p.getLocation(), TNTPrimed.class);
+					TNTPrimed entity = p.getWorld().spawn(p.getLocation(), TNTPrimed.class);
+					entity.setSource(p);
 					entity.setCustomName(p.getName());
 
 					Toolkit.playSoundToPlayer(p, abilities.fetchString("Abilities.Bomber.Sound.Sound"),
