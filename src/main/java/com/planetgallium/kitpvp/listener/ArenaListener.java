@@ -77,15 +77,13 @@ public class ArenaListener implements Listener {
 		}
 	}
 	
+    // Explosions keep their animation, knockback and damage; they just stop destroying the arena.
+    // Cancelling them outright would also swallow effects that are implemented as explosions,
+    // such as a wind charge's burst.
     @EventHandler
     public void onExplode(EntityExplodeEvent e) {
     	if (Toolkit.inArena(e.getEntity()) && config.getBoolean("Arena.PreventBlockBreaking")) {
-    		if (e.getEntityType() == EntityType.PRIMED_TNT) { // enable TNT explosion animation
-    			e.blockList().clear();
-    			e.setCancelled(false);
-    			return;
-			}
-			e.setCancelled(true);
+    		e.blockList().clear();
 		}
     }
 	
