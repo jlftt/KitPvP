@@ -52,26 +52,37 @@ public class TrackerListener implements Listener {
 				public void run() {
 					// if the player using the compass leaves the server or no longer has a kit
 					if (!p.isOnline() || !arena.getKits().playerHasKit(p.getName())) {
-						cancel();
+						stop();
 						return;
 					}
 
 					if (resources.getConfig().getBoolean("PlayerTracker.RefreshOnlyWhenHeld")) {
 						if (!Toolkit.eitherHandHasMaterial(p, "COMPASS")) {
-							cancel();
+							stop();
 							return;
 						}
 					}
 
 					String[] nearestPlayerData = null;
 					if (p.getWorld().getPlayers().size() == 1) {
-						cancel();
+						stop();
 					} else {
 						nearestPlayerData = Toolkit.getNearestPlayer(p,
 												 resources.getConfig().getInt("PlayerTracker.TrackBelowY"));
 					}
 
 					updateTrackingCompass(p, itemHeld, nearestPlayerData);
+				}
+
+				// Also drops this task from trackerTasks: left there, it would keep the player in memory after they
+				// leave, until the same player next selected a compass
+				private void stop() {
+					int taskId = getTaskId();
+					cancel();
+					BukkitTask current = trackerTasks.get(p.getUniqueId());
+					if (current != null && current.getTaskId() == taskId) {
+						trackerTasks.remove(p.getUniqueId());
+					}
 				}
 			}.runTaskTimer(plugin, 0L, 20L);
 			trackerTasks.put(p.getUniqueId(), task);
