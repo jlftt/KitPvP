@@ -142,7 +142,9 @@ public class Arena {
 			p.getInventory().setArmorContents(null);
 		}
 
-		CacheManager.getPlayerAbilityCooldowns(p.getName()).clear();
+		CacheManager.removePlayerAbilityCooldowns(p.getName());
+		CacheManager.getPotionSwitcherUsers().remove(p.getName());
+		kits.resetPlayerKit(p.getName());
 		hitCache.remove(p.getName());
 		hitTimes.remove(p.getName());
 		stats.pushCachedStatsToDatabase(p.getName(), true);

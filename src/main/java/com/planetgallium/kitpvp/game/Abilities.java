@@ -28,6 +28,7 @@ public class Abilities {
     }
 
     public void rebuildCache() {
+        activatorDataToAbility.clear(); // or an ability removed or renamed since stays usable after a reload
         for (Resource abilityResource : resources.getAbilityResources()) {
             Ability ability = getAbilityFromResource(abilityResource);
             AbilityActivatorMetaData activatorMetaData = new AbilityActivatorMetaData(ability.getActivator());

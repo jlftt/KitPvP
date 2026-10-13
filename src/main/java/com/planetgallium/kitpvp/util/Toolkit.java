@@ -55,7 +55,7 @@ public class Toolkit {
 			
 			if (cal <= Double.parseDouble(list[1]) && all != player) {
 				if (all.getLocation().getBlockY() < maxY) {
-					if (all.getGameMode() != GameMode.SPECTATOR) {
+					if (all.getGameMode() != GameMode.SPECTATOR && player.canSee(all)) {
 						nearest = all.getName() + ":" + cal;
 					}
 				}
@@ -97,15 +97,28 @@ public class Toolkit {
 			String sender = commandPhrase[0];
 			String command = commandPhrase[1];
 
-			if (sender.equals("console")) {
-				Bukkit.dispatchCommand(Bukkit.getConsoleSender(),
-						replaceCommandPlaceholders(command, p, replaceFrom, replaceTo));
-			} else if (sender.equals("player")) {
-				p.performCommand(replaceCommandPlaceholders(command, p, replaceFrom, replaceTo));
-			} else {
+			if (!sender.equals("console") && !sender.equals("player")) {
 				Toolkit.printToConsole("&7[&b&lKIT-PVP&7] &cIncorrect command format. " +
 						"Please see: &fhttps://bit.ly/kp-command-format");
 				return;
+			}
+
+			// A command that throws used to end the caller there: an ability went without its cooldown,
+			// and a death without the respawn that follows the kill commands
+			try {
+				String commandToRun = replaceCommandPlaceholders(command, p, replaceFrom, replaceTo);
+				if (sender.equals("console")) {
+					Bukkit.dispatchCommand(Bukkit.getConsoleSender(), commandToRun);
+				} else {
+					p.performCommand(commandToRun);
+				}
+			} catch (RuntimeException exception) {
+				Throwable cause = exception;
+				while (cause.getCause() != null) {
+					cause = cause.getCause();
+				}
+				Toolkit.printToConsole("&7[&b&lKIT-PVP&7] &cCommand failed, skipped: &f" + command +
+						" &c(" + cause + ")");
 			}
 		}
 	}

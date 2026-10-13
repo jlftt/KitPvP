@@ -47,6 +47,9 @@ public class Placeholders extends PlaceholderExpansion {
 
 	private String handleLeaderboardPlaceholder(String identifier) {
 		String[] queries = identifier.split("_");
+		if (queries.length < 4) {
+			return null; // not top_<type>_<player|amount>_<rank>
+		}
 		String topType = queries[1]; // ex: kills
 		String topIdentifier = queries[2]; // ex: amount, player
 		String possibleTopValue = queries[3]; // 1, 15

@@ -34,7 +34,8 @@ public class Kits {
         this.resources = plugin.getResources();
         this.messages = resources.getMessages();
 
-        this.playerKits = new HashMap<>();
+        // Also read by placeholders, which other plugins may request off the server thread
+        this.playerKits = Collections.synchronizedMap(new HashMap<>());
     }
 
     // Could also load and cache kits onEnable like Abilities.yml so no lag spike for hefty kit when first used by

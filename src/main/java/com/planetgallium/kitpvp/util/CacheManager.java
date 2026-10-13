@@ -32,6 +32,8 @@ public class CacheManager {
         return abilityCooldowns.get(username);
     }
 
+    public static void removePlayerAbilityCooldowns(String username) { abilityCooldowns.remove(username); }
+
     public static void clearCaches() {
         kitCache.clear();
         previewMenuCache.clear();

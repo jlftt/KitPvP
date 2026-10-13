@@ -247,7 +247,9 @@ public class MainCommand implements CommandExecutor {
             message += fileName[0] + ", ";
         }
 
-        message = message.substring(0, message.length() - 2);
+        if (!message.isEmpty()) {
+            message = message.substring(0, message.length() - 2);
+        }
 
         sender.sendMessage(messages.fetchString("Messages.Commands.Kits").replace("%kits%", message));
     }
@@ -311,7 +313,7 @@ public class MainCommand implements CommandExecutor {
 
     private void executeSetStatsCommand(CommandSender sender, String[] args) {
         String playerName = args[1];
-        String statsIdentifier = args[2];
+        String statsIdentifier = args[2].toLowerCase(); // stats are stored under lower case names
         String possibleAmount = args[3];
 
         if (isValidStatIdentifier(statsIdentifier, true)) {
@@ -319,12 +321,14 @@ public class MainCommand implements CommandExecutor {
             if (!StringUtils.isNumeric(possibleAmount)) {
                 sender.sendMessage(resources.getMessages().fetchString("Messages.Error.InvalidNumber")
                         .replace("%number%", possibleAmount));
+                return;
             }
 
             String playerUUID = plugin.getDatabase().usernameToUUID(playerName);
 
             if (playerUUID == null) {
                 sender.sendMessage(resources.getMessages().fetchString("Messages.Error.Offline"));
+                return;
             }
 
             int amount = Integer.parseInt(possibleAmount);
@@ -438,7 +442,9 @@ public class MainCommand implements CommandExecutor {
 
         if (config.contains("Arenas." + arenaName)) {
             config.set("Arenas." + arenaName, null);
-            plugin.saveConfig();
+            // Not plugin.saveConfig(): that writes Bukkit's own copy of config.yml, read before this
+            // change, so the arena came back and later changes to the file were overwritten
+            config.save();
 
             p.sendMessage(messages.fetchString("Messages.Commands.Removed").replace("%arena%", arenaName));
             Toolkit.playSoundToPlayer(p, "ENTITY_ZOMBIE_ATTACK_WOODEN_DOOR", 1);

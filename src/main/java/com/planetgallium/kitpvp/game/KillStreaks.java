@@ -1,6 +1,8 @@
 package com.planetgallium.kitpvp.game;
 
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.Map;
 
 import com.cryptomorin.xseries.messages.Titles;
 import com.planetgallium.kitpvp.util.*;
@@ -17,12 +19,13 @@ public class KillStreaks implements Listener {
 
 	private final Resources resources;
 	private final Resource killConfig;
-	private final HashMap<String, Integer> kills;
+	private final Map<String, Integer> kills;
 	
 	public KillStreaks(Resources resources) {
 		this.resources = resources;
 		this.killConfig = resources.getKillStreaks();
-		this.kills = new HashMap<>();
+		// Also read by placeholders, which other plugins may request off the server thread
+		this.kills = Collections.synchronizedMap(new HashMap<>());
 	}
 	
 	@EventHandler
@@ -57,7 +60,7 @@ public class KillStreaks implements Listener {
 	@EventHandler
 	public void removeStreak(PlayerQuitEvent e) {
 		if (resources.getConfig().getBoolean("Arena.ResetKillStreakOnLeave")) {
-			kills.put(e.getPlayer().getName(), 0);
+			kills.remove(e.getPlayer().getName()); // an absent streak reads as 0
 		}
 	}
 	

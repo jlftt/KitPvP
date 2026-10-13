@@ -150,7 +150,12 @@ public class Game extends JavaPlugin implements Listener {
 		// Stats are otherwise only saved on death or quit, and quit events on shutdown arrive after plugins are
 		// disabled, so save what online players earned since their last death synchronously here
 		if (database != null) {
-			for (Map.Entry<String, PlayerData> entry : new HashMap<>(CacheManager.getStatsCache()).entrySet()) {
+			Map<String, PlayerData> statsCache = CacheManager.getStatsCache();
+			Map<String, PlayerData> statsToSave;
+			synchronized (statsCache) { // a save still running on another thread may be removing an entry
+				statsToSave = new HashMap<>(statsCache);
+			}
+			for (Map.Entry<String, PlayerData> entry : statsToSave.entrySet()) {
 				database.setStatsData(entry.getKey(), entry.getValue());
 			}
 		}

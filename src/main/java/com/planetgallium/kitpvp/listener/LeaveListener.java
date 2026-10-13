@@ -25,6 +25,9 @@ public class LeaveListener implements Listener {
 		Player p = e.getPlayer();
 		if (Toolkit.inArena(p)) {
 			arena.deletePlayer(p);
+		} else {
+			// Their stats were cached when they joined, whichever world they were in
+			arena.getStats().pushCachedStatsToDatabase(p.getName(), true);
 		}
 	}
 
