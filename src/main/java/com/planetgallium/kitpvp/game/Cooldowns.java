@@ -5,6 +5,7 @@ import com.planetgallium.kitpvp.api.Ability;
 import com.planetgallium.kitpvp.api.Kit;
 import com.planetgallium.kitpvp.util.CacheManager;
 import com.planetgallium.kitpvp.util.Cooldown;
+import com.planetgallium.kitpvp.util.PlayerData;
 import org.bukkit.entity.Player;
 
 import java.util.Map;
@@ -45,14 +46,19 @@ public class Cooldowns {
 
 			// A cooldown set during this session is only in the stats cache until it is pushed to the database
 			// on death or quit, so check the cache first
-			Map<String, Long> cachedKitCooldowns = stats.getOrCreateStatsCache(p.getName()).getKitCooldowns();
+			PlayerData playerData = stats.getOrCreateStatsCache(p.getName());
+			Map<String, Long> cachedKitCooldowns = playerData.getKitCooldowns();
 			if (cachedKitCooldowns.containsKey(kit.getName())) {
 				timeLastUsedSeconds = cachedKitCooldowns.get(kit.getName()).intValue();
+			} else if (playerData.hasNoStoredCooldown(kit.getName())) {
+				return noCooldown;
 			} else {
 				Object timeLastUsedResult = database.getData(kit.getName() + "_cooldowns", "last_used", p.getName());
 				if (timeLastUsedResult != null) {
 					timeLastUsedSeconds = (int) timeLastUsedResult;
+					cachedKitCooldowns.put(kit.getName(), (long) timeLastUsedSeconds);
 				} else {
+					playerData.setNoStoredCooldown(kit.getName());
 					return noCooldown;
 				}
 			}

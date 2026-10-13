@@ -7,11 +7,12 @@ import java.util.*;
 
 public class CacheManager {
 
-    private static final Map<String, String> usernameToUUID = new HashMap<>();
+    // The stats and UUID caches are also reached from the stats save and the chat event, off the server thread
+    private static final Map<String, String> usernameToUUID = Collections.synchronizedMap(new HashMap<>());
     private static final Map<String, Kit> kitCache = new HashMap<>();
     private static final Map<String, ItemStack[]> previewMenuCache = new HashMap<>();
     private static final Map<String, Map<String, Long>> abilityCooldowns = new HashMap<>();
-    private static final Map<String, PlayerData> statsCache = new HashMap<>();
+    private static final Map<String, PlayerData> statsCache = Collections.synchronizedMap(new HashMap<>());
     private static final Set<String> potionSwitcherUsers = new HashSet<>();
 
     public static Map<String, String> getUUIDCache() { return usernameToUUID; }

@@ -33,7 +33,7 @@ public class HitListener implements Listener {
 			Player damagedPlayer = (Player) e.getEntity();
 
 			if (Toolkit.inArena(damagedPlayer)) {
-				arena.getHitCache().put(damagedPlayer.getName(), damager.getName());
+				arena.recordHit(damagedPlayer.getName(), damager.getName());
 
 				if (config.getBoolean("Combat.HitSound.Enabled")) {
 					hitSound.soundPlayer().forPlayers(damagedPlayer, damager);

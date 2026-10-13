@@ -116,6 +116,11 @@ public class DeathListener implements Listener {
 
 				@Override
 				public void run() {
+					if (!victim.isOnline()) {
+						cancel(); // left during the countdown: nobody to respawn
+						return;
+					}
+
 					if (time != 0) {
 						Titles.sendTitle(victim, 0, 21, 0,
 								config.fetchString("Death.Title.Title"),
@@ -188,8 +193,8 @@ public class DeathListener implements Listener {
 			broadcast(victim.getWorld(), getDeathMessage(victim, killer, "Player"));
 			creditWithKill(victim, killer);
 
-		} else if (arena.getHitCache().get(victim.getName()) != null) {
-			String killerName = arena.getHitCache().get(victim.getName());
+		} else if (arena.getRecentAttacker(victim.getName()) != null) {
+			String killerName = arena.getRecentAttacker(victim.getName());
 			Player killer = Toolkit.getPlayer(victim.getWorld(), killerName);
 
 			broadcast(victim.getWorld(), getDeathMessage(victim, killer, "Player"));

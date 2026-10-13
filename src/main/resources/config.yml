@@ -23,6 +23,7 @@ Chat:
   Format: '%level% &e%player% &f%message%'
   Enabled: true
 Combat:
+  KillCreditSeconds: 15
   HitSound:
     Sound: BLAZE_HIT
     Pitch: 1

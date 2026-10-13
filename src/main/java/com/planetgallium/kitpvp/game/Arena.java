@@ -23,6 +23,7 @@ public class Arena {
 	private final Resource config;
 
 	private final Map<String, String> hitCache;
+	private final Map<String, Long> hitTimes;
 
 	private final Utilities utilties;
 	private final Leaderboards leaderboards;
@@ -41,6 +42,7 @@ public class Arena {
 		this.config = resources.getConfig();
 
 		this.hitCache = new HashMap<>();
+		this.hitTimes = new HashMap<>();
 
 		this.utilties = new Utilities(plugin, this);
 		this.leaderboards = new Leaderboards(plugin);
@@ -131,6 +133,7 @@ public class Arena {
 
 		stats.pushCachedStatsToDatabase(p.getName(), false); // cached stats are pushed to database on death
 		hitCache.remove(p.getName());
+		hitTimes.remove(p.getName());
 	}
 	
 	public void deletePlayer(Player p) {
@@ -141,6 +144,7 @@ public class Arena {
 
 		CacheManager.getPlayerAbilityCooldowns(p.getName()).clear();
 		hitCache.remove(p.getName());
+		hitTimes.remove(p.getName());
 		stats.pushCachedStatsToDatabase(p.getName(), true);
 	}
 	
@@ -199,6 +203,31 @@ public class Arena {
 	}
 
 	public Map<String, String> getHitCache() { return hitCache; }
+
+	/** Remembers who last hit a player, for a death the game itself credits to nobody. */
+	public void recordHit(String victimName, String attackerName) {
+		hitCache.put(victimName, attackerName);
+		hitTimes.put(victimName, System.currentTimeMillis());
+	}
+
+	/**
+	 * Who last hit this player, while that hit still earns the kill: within Combat.KillCreditSeconds,
+	 * or however long ago when that is 0 or less. Null otherwise.
+	 */
+	public String getRecentAttacker(String victimName) {
+		String attackerName = hitCache.get(victimName);
+		Long hitTime = hitTimes.get(victimName);
+		if (attackerName == null || hitTime == null) {
+			return attackerName;
+		}
+
+		int creditSeconds = config.contains("Combat.KillCreditSeconds") ?
+				config.getInt("Combat.KillCreditSeconds") : 15;
+		if (creditSeconds > 0 && System.currentTimeMillis() - hitTime > creditSeconds * 1000L) {
+			return null;
+		}
+		return attackerName;
+	}
 
 	public Stats getStats() { return stats; }
 

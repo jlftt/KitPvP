@@ -13,6 +13,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.Statistic;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.*;
 import org.bukkit.event.Event;
@@ -279,6 +280,8 @@ public class ItemListener implements Listener {
 		ItemStack previousChestplate = p.getInventory().getChestplate();
 		ItemStack previousLeggings = p.getInventory().getLeggings();
 		ItemStack previousBoots = p.getInventory().getBoots();
+		// A player who dies and takes a kit again within the five seconds must not get this armor back
+		int deathsWhenUsed = p.getStatistic(Statistic.DEATHS);
 
 		p.getInventory().setArmorContents(null);
 
@@ -299,7 +302,8 @@ public class ItemListener implements Listener {
 		new BukkitRunnable() {
 			@Override
 			public void run() {
-				if (arena.getKits().playerHasKit(p.getName())) {
+				if (p.isOnline() && p.getStatistic(Statistic.DEATHS) == deathsWhenUsed &&
+						arena.getKits().playerHasKit(p.getName())) {
 					p.getInventory().setHelmet(previousHelmet);
 					p.getInventory().setChestplate(previousChestplate);
 					p.getInventory().setLeggings(previousLeggings);

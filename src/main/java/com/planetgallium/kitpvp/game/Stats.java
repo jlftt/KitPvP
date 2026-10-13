@@ -112,16 +112,21 @@ public class Stats {
     }
 
     public void pushCachedStatsToDatabase(String username, boolean removeFromCacheAfter) {
+        PlayerData cachedStats = CacheManager.getStatsCache().get(username);
+        if (cachedStats == null) {
+            return; // nothing to push if stats cache is empty
+        }
+
+        // Copied here, on the server thread: the save runs on another one while the player goes on playing
+        PlayerData statsToSave = cachedStats.copy();
+
         new BukkitRunnable() {
             @Override
             public void run() {
-                if (!CacheManager.getStatsCache().containsKey(username)) {
-                    return; // nothing to push if stats cache is empty
-                }
-
-                database.setStatsData(username, getOrCreateStatsCache(username));
+                database.setStatsData(username, statsToSave);
                 if (removeFromCacheAfter) {
-                    CacheManager.getStatsCache().remove(username);
+                    // Unless replaced since: a player who rejoined meanwhile has their stats cached again
+                    CacheManager.getStatsCache().remove(username, cachedStats);
                 }
             }
         }.runTaskAsynchronously(plugin);
