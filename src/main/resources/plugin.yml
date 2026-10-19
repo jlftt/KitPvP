@@ -37,3 +37,6 @@ permissions:
      default: true
    kp.arrowreturn:
      default: true
+   kp.arena.bypass:
+     description: Keep inventory, effects and game mode on entering the arena
+     default: op

@@ -42,30 +42,30 @@ public class JoinListener implements Listener {
 					" &7has joined the server."));
 		}
 
-		if (Toolkit.inArena(p)) {
-			if (config.getBoolean("Arena.ClearInventoryOnJoin")) {
-				p.getInventory().clear();
-				p.getInventory().setArmorContents(null);
-			}
-
-			arena.addPlayer(p, config.getBoolean("Arena.ToSpawnOnJoin"),
-					config.getBoolean("Arena.GiveItemsOnJoin"));
-		}
+		enterArena(p);
 	}
 	
 	@EventHandler
 	public void onWorldChange(PlayerChangedWorldEvent e) {
 		Player p = e.getPlayer();
 
-		if (Toolkit.inArena(p)) {
-			if (config.getBoolean("Arena.ClearInventoryOnJoin")) {
-				p.getInventory().clear();
-				p.getInventory().setArmorContents(null);
-			}
-			
-			arena.addPlayer(p, config.getBoolean("Arena.ToSpawnOnJoin"),
-					config.getBoolean("Arena.GiveItemsOnJoin"));
-		}
+		enterArena(p);
 	}
-	
+
+	// A player with kp.arena.bypass (operators by default) keeps their inventory, effects and game mode
+	// on entering the arena, so staff can come over from another server or world without losing anything
+	private void enterArena(Player p) {
+		if (!Toolkit.inArena(p) || p.hasPermission("kp.arena.bypass")) {
+			return;
+		}
+
+		if (config.getBoolean("Arena.ClearInventoryOnJoin")) {
+			p.getInventory().clear();
+			p.getInventory().setArmorContents(null);
+		}
+
+		arena.addPlayer(p, config.getBoolean("Arena.ToSpawnOnJoin"),
+				config.getBoolean("Arena.GiveItemsOnJoin"));
+	}
+
 }
