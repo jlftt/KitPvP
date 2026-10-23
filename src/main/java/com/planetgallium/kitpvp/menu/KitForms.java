@@ -8,6 +8,7 @@ import org.bukkit.ChatColor;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
 import org.geysermc.cumulus.form.SimpleForm;
+import org.geysermc.cumulus.util.FormImage;
 import org.geysermc.floodgate.api.FloodgateApi;
 import org.geysermc.floodgate.api.player.FloodgatePlayer;
 import org.geysermc.floodgate.util.DeviceOs;
@@ -28,6 +29,13 @@ import java.util.TreeMap;
  * Only loaded once Floodgate is known to be enabled: KitMenu checks before touching this class.
  */
 final class KitForms {
+
+	// A form button is light gray: dark colors only. The name stands out, the ability under it is a quieter blue
+	private static final String BUTTON_NAME = "§0§l";
+	private static final String BUTTON_DETAIL = "§3";
+
+	/** A spyglass for Preview: a Bedrock game texture, as BedrockIcon in menu.yml. */
+	private static final String PREVIEW_ICON = "textures/items/spyglass";
 
 	private KitForms() {
 	}
@@ -65,10 +73,11 @@ final class KitForms {
 		}
 
 		List<String> paths = new ArrayList<>(kits.values());
-		SimpleForm.Builder form = SimpleForm.builder().title(plain(menu.fetchString("Menu.General.Title")));
+		SimpleForm.Builder form = SimpleForm.builder().title("§l" + plain(menu.fetchString("Menu.General.Title")));
 		for (String path : paths) {
 			String summary = firstLine(menu.getStringList(path + ".Lore"));
-			form.button(plain(menu.fetchString(path + ".Name")) + (summary.isEmpty() ? "" : "\n§8" + summary));
+			button(form, BUTTON_NAME + plain(menu.fetchString(path + ".Name"))
+					+ (summary.isEmpty() ? "" : "\n" + BUTTON_DETAIL + summary), menu.getString(path + ".BedrockIcon"));
 		}
 		form.validResultHandler(response -> openKit(player, paths.get(response.clickedButtonId())));
 
@@ -77,9 +86,8 @@ final class KitForms {
 	}
 
 	/**
-	 * A touch screen, or a phone or tablet whatever its input: the input mode does not always reach the server (it
-	 * may be missing or unknown, as it seemed for an iPhone joining through Geyser's NetherNet), and a phone's screen stays small
-	 * with a controller too.
+	 * A touch screen, or a phone or tablet whatever its input: the input mode can be missing or unknown, as it
+	 * seemed for an iPhone joining through Geyser's NetherNet, and a phone's screen stays small with a controller too.
 	 */
 	private static boolean isPhoneOrTablet(FloodgatePlayer bedrock) {
 		if (bedrock.getInputMode() == InputMode.TOUCH) {
@@ -103,13 +111,13 @@ final class KitForms {
 		}
 
 		SimpleForm.Builder form = SimpleForm.builder()
-				.title(plain(menu.fetchString(path + ".Name")))
-				.content(String.join("\n", lore).trim())
-				.button("Select");
+				.title("§l" + plain(menu.fetchString(path + ".Name")))
+				.content(String.join("\n", lore).trim());
+		button(form, "§2§lSelect", menu.getString(path + ".BedrockIcon"));
 		if (!preview.isEmpty()) {
-			form.button("Preview");
+			button(form, "§1§lPreview", PREVIEW_ICON);
 		}
-		form.button("Back");
+		button(form, "§8Back", null);
 
 		form.validResultHandler(response -> {
 			int clicked = response.clickedButtonId();
@@ -128,6 +136,18 @@ final class KitForms {
 		});
 
 		FloodgateApi.getInstance().sendForm(player.getUniqueId(), form.build());
+	}
+
+	/**
+	 * A button with the icon a menu item names in BedrockIcon: a texture path of the Bedrock game, such as
+	 * textures/items/bow_standby; without one, the button has no icon.
+	 */
+	private static void button(SimpleForm.Builder form, String text, String icon) {
+		if (icon == null || icon.isBlank()) {
+			form.button(text);
+		} else {
+			form.button(text, FormImage.Type.PATH, icon.trim());
+		}
 	}
 
 	/** Form answers arrive off the main thread; the menu's commands run on it, as from the chest menu. */

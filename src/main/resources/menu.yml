@@ -15,10 +15,12 @@ Menu:
     # Bedrock players on a phone or tablet get the kits as native forms (list, then Select / Preview / Back)
     # instead of this chest, which a small screen squeezes out of shape. Needs Floodgate on this server.
     BedrockForms: true
+    # Each item can name its form icon with BedrockIcon: a Bedrock game texture, such as textures/items/bow_standby
   Items:
     10:
       Name: '&a&lFighter Kit'
       Material: IRON_CHESTPLATE
+      BedrockIcon: textures/items/iron_chestplate
       Lore:
       - '&6Ability: &7Rechargeable Health Pack'
       - ' '
@@ -36,6 +38,7 @@ Menu:
     11:
       Name: '&a&lArcher Kit'
       Material: BOW
+      BedrockIcon: textures/items/bow_standby
       Lore:
       - '&6Ability: &710 Fire Arrows'
       - ' '
@@ -55,6 +58,7 @@ Menu:
     12:
       Name: '&a&lTank Kit'
       Material: DIAMOND
+      BedrockIcon: textures/items/diamond
       Lore:
       - '&6Ability: &7Rechargeable Speed Boost'
       - ' '
@@ -72,6 +76,7 @@ Menu:
     13:
       Name: '&a&lSoldier Kit'
       Material: ARROW
+      BedrockIcon: textures/items/arrow
       Lore:
       - '&6Ability: &7Gun with 5 ammo'
       - ' '
@@ -92,6 +97,7 @@ Menu:
     14:
       Name: '&a&lBomber Kit'
       Material: TNT
+      BedrockIcon: textures/blocks/tnt_side
       Lore:
       - '&6Ability: &73 TNT Trails'
       - ' '
@@ -110,6 +116,7 @@ Menu:
     15:
       Name: '&a&lKangaroo Kit'
       Material: SADDLE
+      BedrockIcon: textures/items/saddle
       Lore:
       - '&6Ability: &73 Launchers'
       - ' '
@@ -127,6 +134,7 @@ Menu:
     16:
       Name: '&a&lWarper Kit'    
       Material: ENDER_PEARL
+      BedrockIcon: textures/items/ender_pearl
       Lore:
       - '&6Ability: &73 Teleporters'
       - ' '
@@ -145,6 +153,7 @@ Menu:
     19:
       Name: '&a&lWitch Kit'
       Material: BREWING_STAND
+      BedrockIcon: textures/items/brewing_stand
       Slot: 19
       Lore:
       - '&6Ability: &7Infinite Potions'
@@ -163,6 +172,7 @@ Menu:
     20:
       Name: '&a&lNinja Kit'
       Material: NETHER_STAR
+      BedrockIcon: textures/items/nether_star
       Lore:
       - '&6Ability: &73 Vanish Stars'
       - ' '
@@ -180,6 +190,7 @@ Menu:
     21:
       Name: '&a&lThunderbolt Kit'
       Material: BLAZE_POWDER
+      BedrockIcon: textures/items/blaze_powder
       Lore:
       - '&6Ability: &73 Lightning Strikes'
       - ' '
@@ -197,6 +208,7 @@ Menu:
     22:
       Name: '&a&lVampire Kit'
       Material: FERMENTED_SPIDER_EYE
+      BedrockIcon: textures/items/spider_eye_fermented
       Lore:
       - '&6Ability: &75 Blood Suckers'
       - ' '
@@ -214,6 +226,7 @@ Menu:
     23:
       Name: '&a&lRhino Kit'
       Material: DIAMOND_HELMET
+      BedrockIcon: textures/items/diamond_helmet
       Lore:
       - '&6Ability: &7Rechargeable Rhino Charge'
       - ' '
@@ -231,6 +244,7 @@ Menu:
     24:
       Name: '&a&lTrickster Kit'
       Material: EGG
+      BedrockIcon: textures/items/egg
       Lore:
       - '&6Ability: &74 Switcher Pellets'
       - ' '
@@ -248,6 +262,7 @@ Menu:
     25:
       Name: '&a&lExample Kit'
       Material: WOOD_SWORD
+      BedrockIcon: textures/items/wood_sword
       Lore:
       - '&7This is the example of a custom'
       - '&7kit you can create using KitPvP.'
@@ -263,6 +278,7 @@ Menu:
     40:
       Name: '&c&lClose'
       Material: BARRIER
+      BedrockIcon: textures/blocks/barrier
       Lore:
       - '&7Click to close the Kit Menu.'
       Commands: []
