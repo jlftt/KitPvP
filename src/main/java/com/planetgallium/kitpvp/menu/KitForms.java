@@ -23,8 +23,9 @@ import java.util.TreeMap;
  * <p>
  * A phone or tablet squeezes a large chest menu until its items no longer sit where they are drawn, and a Bedrock
  * client has a single kind of click, so the chest menu's right click (preview) cannot be reached at all. These
- * players get a list of the kits instead; picking one shows its lore with Select, Preview and Back. The buttons run
- * the same Left-Click and Right-Click commands from menu.yml as the chest menu.
+ * players get a list of the kits instead, each with its icon and ability, and one tap selects it: it runs the same
+ * Left-Click commands from menu.yml as the chest menu. No preview screen in between, as a second tap per kit only
+ * slows trying them; /kp preview still shows a kit.
  * <p>
  * Only loaded once Floodgate is known to be enabled: KitMenu checks before touching this class.
  */
@@ -34,9 +35,6 @@ final class KitForms {
 	// names in bold, in the button's own color; the ability under a name plain dark gray
 	private static final String BOLD = "§l";
 	private static final String BUTTON_DETAIL = "§8";
-
-	/** A spyglass for Preview: a Bedrock game texture, as BedrockIcon in menu.yml. */
-	private static final String PREVIEW_ICON = "textures/items/spyglass";
 
 	private KitForms() {
 	}
@@ -74,13 +72,18 @@ final class KitForms {
 		}
 
 		List<String> paths = new ArrayList<>(kits.values());
+		// Read here, on the main thread: the answer arrives on another one
+		List<List<String>> commands = new ArrayList<>();
+		for (String path : paths) {
+			commands.add(menu.getStringList(path + ".Commands.Left-Click"));
+		}
 		SimpleForm.Builder form = SimpleForm.builder().title(BOLD + plain(menu.fetchString("Menu.General.Title")));
 		for (String path : paths) {
 			String summary = firstLine(menu.getStringList(path + ".Lore"));
 			button(form, BOLD + plain(menu.fetchString(path + ".Name"))
 					+ (summary.isEmpty() ? "" : "\n§r" + BUTTON_DETAIL + summary), icon(menu, path));
 		}
-		form.validResultHandler(response -> openKit(player, paths.get(response.clickedButtonId())));
+		form.validResultHandler(response -> run(player, commands.get(response.clickedButtonId())));
 
 		bedrock.sendForm(form.build());
 		return true;
@@ -97,46 +100,6 @@ final class KitForms {
 		DeviceOs device = bedrock.getDeviceOs();
 		return device == DeviceOs.GOOGLE || device == DeviceOs.IOS || device == DeviceOs.AMAZON
 				|| device == DeviceOs.WINDOWS_PHONE;
-	}
-
-	/** One kit: its lore, then Select, Preview when the kit has one, and Back to the list. */
-	private static void openKit(Player player, String path) {
-		Resource menu = Game.getInstance().getResources().getMenu();
-		List<String> select = menu.getStringList(path + ".Commands.Left-Click");
-		List<String> preview = menu.contains(path + ".Commands.Right-Click") ?
-				menu.getStringList(path + ".Commands.Right-Click") : new ArrayList<>();
-
-		List<String> lore = new ArrayList<>();
-		for (String line : menu.getStringList(path + ".Lore")) {
-			lore.add(Toolkit.translate(line));
-		}
-
-		SimpleForm.Builder form = SimpleForm.builder()
-				.title(BOLD + plain(menu.fetchString(path + ".Name")))
-				.content(String.join("\n", lore).trim());
-		button(form, "Select", icon(menu, path));
-		if (!preview.isEmpty()) {
-			button(form, "Preview", PREVIEW_ICON);
-		}
-		button(form, "Back", null);
-
-		form.validResultHandler(response -> {
-			int clicked = response.clickedButtonId();
-			if (clicked == 0) {
-				run(player, select);
-			} else if (clicked == 1 && !preview.isEmpty()) {
-				run(player, preview);
-			} else {
-				// Back: on the main thread, where the menu reads its config
-				Bukkit.getScheduler().runTask(Game.getInstance(), () -> {
-					if (player.isOnline()) {
-						openIfTouch(player);
-					}
-				});
-			}
-		});
-
-		FloodgateApi.getInstance().sendForm(player.getUniqueId(), form.build());
 	}
 
 	/**

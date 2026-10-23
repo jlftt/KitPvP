@@ -12,7 +12,7 @@ Menu:
       - '&fRight-click to preview.'
       Bedrock:
       - '&fClick to select.'
-    # Bedrock players on a phone or tablet get the kits as native forms (list, then Select / Preview / Back)
+    # Bedrock players on a phone or tablet get the kits as a native form list, one tap selects a kit,
     # instead of this chest, which a small screen squeezes out of shape. Needs Floodgate on this server.
     BedrockForms: true
     # Each item can name its form icon with BedrockIcon: a Bedrock game texture, such as textures/items/bow_standby
