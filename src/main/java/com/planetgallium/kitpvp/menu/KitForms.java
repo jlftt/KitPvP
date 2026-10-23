@@ -30,9 +30,9 @@ import java.util.TreeMap;
  */
 final class KitForms {
 
-	// A form button is light gray: dark colors only. The name stands out, the ability under it is a quieter blue
-	private static final String BUTTON_NAME = "§0§l";
-	private static final String BUTTON_DETAIL = "§3";
+	// The network's gray-and-white look; a form button is light gray, so its text stays dark: the name in the
+	// button's own color, the ability under it in dark gray
+	private static final String BUTTON_DETAIL = "§8";
 
 	/** A spyglass for Preview: a Bedrock game texture, as BedrockIcon in menu.yml. */
 	private static final String PREVIEW_ICON = "textures/items/spyglass";
@@ -73,11 +73,11 @@ final class KitForms {
 		}
 
 		List<String> paths = new ArrayList<>(kits.values());
-		SimpleForm.Builder form = SimpleForm.builder().title("§l" + plain(menu.fetchString("Menu.General.Title")));
+		SimpleForm.Builder form = SimpleForm.builder().title(plain(menu.fetchString("Menu.General.Title")));
 		for (String path : paths) {
 			String summary = firstLine(menu.getStringList(path + ".Lore"));
-			button(form, BUTTON_NAME + plain(menu.fetchString(path + ".Name"))
-					+ (summary.isEmpty() ? "" : "\n" + BUTTON_DETAIL + summary), menu.getString(path + ".BedrockIcon"));
+			button(form, plain(menu.fetchString(path + ".Name"))
+					+ (summary.isEmpty() ? "" : "\n" + BUTTON_DETAIL + summary), icon(menu, path));
 		}
 		form.validResultHandler(response -> openKit(player, paths.get(response.clickedButtonId())));
 
@@ -111,13 +111,13 @@ final class KitForms {
 		}
 
 		SimpleForm.Builder form = SimpleForm.builder()
-				.title("§l" + plain(menu.fetchString(path + ".Name")))
+				.title(plain(menu.fetchString(path + ".Name")))
 				.content(String.join("\n", lore).trim());
-		button(form, "§2§lSelect", menu.getString(path + ".BedrockIcon"));
+		button(form, "Select", icon(menu, path));
 		if (!preview.isEmpty()) {
-			button(form, "§1§lPreview", PREVIEW_ICON);
+			button(form, "Preview", PREVIEW_ICON);
 		}
-		button(form, "§8Back", null);
+		button(form, "Back", null);
 
 		form.validResultHandler(response -> {
 			int clicked = response.clickedButtonId();
@@ -148,6 +148,11 @@ final class KitForms {
 		} else {
 			form.button(text, FormImage.Type.PATH, icon.trim());
 		}
+	}
+
+	/** The item's BedrockIcon, or null when it has none. */
+	private static String icon(Resource menu, String path) {
+		return menu.contains(path + ".BedrockIcon") ? menu.fetchString(path + ".BedrockIcon") : null;
 	}
 
 	/** Form answers arrive off the main thread; the menu's commands run on it, as from the chest menu. */
