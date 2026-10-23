@@ -129,7 +129,8 @@ public class Game extends JavaPlugin implements Listener {
 
 		if (Toolkit.matchesConfigItem(Toolkit.getHandItemForInteraction(e), resources.getConfig(), "Items.Leave")) {
 			if (resources.getConfig().getBoolean("Items.Leave.Enabled")) {
-				if (e.getAction() == Action.RIGHT_CLICK_AIR || e.getAction() == Action.RIGHT_CLICK_BLOCK) {
+				// Either click, as the other arena items: on a Bedrock touch screen a tap is a left click
+				if (e.getAction() != Action.PHYSICAL) {
 					if (resources.getConfig().getBoolean("Items.Leave.BungeeCord.Enabled")) {
 						ByteArrayDataOutput out = ByteStreams.newDataOutput();
 						out.writeUTF("Connect");
