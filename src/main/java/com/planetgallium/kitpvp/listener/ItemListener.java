@@ -59,8 +59,21 @@ public class ItemListener implements Listener {
 	public void onInteract(PlayerInteractEvent e) {
 		Player p = e.getPlayer();
 
-		if (Toolkit.inArena(p) &&
-				(e.getAction() == Action.RIGHT_CLICK_AIR || e.getAction() == Action.RIGHT_CLICK_BLOCK)) {
+		if (!Toolkit.inArena(p)) {
+			return;
+		}
+
+		boolean rightClick = e.getAction() == Action.RIGHT_CLICK_AIR || e.getAction() == Action.RIGHT_CLICK_BLOCK;
+		boolean leftClick = e.getAction() == Action.LEFT_CLICK_AIR || e.getAction() == Action.LEFT_CLICK_BLOCK;
+
+		// The arena items (kit selector, back to the hub...) answer a left click too: on a Bedrock touch screen a
+		// tap is a left click, and a right click needs a long press nobody thinks of. Abilities stay right click.
+		if (leftClick) {
+			useArenaItem(e, p, Toolkit.getHandItemForInteraction(e));
+			return;
+		}
+
+		if (rightClick) {
 
 			ItemStack interactedItem = Toolkit.getHandItemForInteraction(e);
 			ItemMeta interactedItemMeta = interactedItem.getItemMeta();
@@ -98,43 +111,45 @@ public class ItemListener implements Listener {
 
 			}
 
-			/* Kit Item and custom Arena Items */
+			useArenaItem(e, p, interactedItem);
+		}
+	}
 
-			if (config.contains("Items.Kits") &&
-					Toolkit.hasMatchingMaterial(interactedItem, config.fetchString("Items.Kits.Material"))) {
+	/** The kit selector and the custom arena items from config.yml: runs their commands. */
+	private void useArenaItem(PlayerInteractEvent e, Player p, ItemStack interactedItem) {
+		if (config.contains("Items.Kits") &&
+				Toolkit.hasMatchingMaterial(interactedItem, config.fetchString("Items.Kits.Material"))) {
 
-				if (Toolkit.hasMatchingDisplayName(interactedItem, config.fetchString("Items.Kits.Name"))) {
-					Toolkit.runCommands(p, config.getStringList("Items.Kits.Commands"),
-							"none", "none");
+			if (Toolkit.hasMatchingDisplayName(interactedItem, config.fetchString("Items.Kits.Name"))) {
+				Toolkit.runCommands(p, config.getStringList("Items.Kits.Commands"),
+						"none", "none");
 
-					if (config.getBoolean("Items.Kits.Menu")) {
-						arena.getMenus().getKitMenu().open(p);
-					}
-
-					e.setCancelled(true);
+				if (config.getBoolean("Items.Kits.Menu")) {
+					arena.getMenus().getKitMenu().open(p);
 				}
 
-			} else if (interactedItem.hasItemMeta()) {
-				ConfigurationSection items = config.getConfigurationSection("Items");
+				e.setCancelled(true);
+			}
 
-				for (String identifier : items.getKeys(false)) {
-					String itemPath = "Items." + identifier;
+		} else if (interactedItem.hasItemMeta()) {
+			ConfigurationSection items = config.getConfigurationSection("Items");
 
-					if (!config.getBoolean(itemPath + ".Enabled")) {
-						continue;
-					}
+			for (String identifier : items.getKeys(false)) {
+				String itemPath = "Items." + identifier;
 
-					String itemMaterialName = config.fetchString(itemPath + ".Material");
-					if (Toolkit.hasMatchingMaterial(interactedItem, itemMaterialName)) {
-						if (Toolkit.hasMatchingDisplayName(interactedItem, config.fetchString(itemPath + ".Name"))) {
-							Toolkit.runCommands(p, config.getStringList(itemPath + ".Commands"),
-									"none", "none");
-							e.setCancelled(true);
-						}
+				if (!config.getBoolean(itemPath + ".Enabled")) {
+					continue;
+				}
+
+				String itemMaterialName = config.fetchString(itemPath + ".Material");
+				if (Toolkit.hasMatchingMaterial(interactedItem, itemMaterialName)) {
+					if (Toolkit.hasMatchingDisplayName(interactedItem, config.fetchString(itemPath + ".Name"))) {
+						Toolkit.runCommands(p, config.getStringList(itemPath + ".Commands"),
+								"none", "none");
+						e.setCancelled(true);
 					}
 				}
 			}
-			
 		}
 	}
 
