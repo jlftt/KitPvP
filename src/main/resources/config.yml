@@ -126,6 +126,8 @@ Arena:
   FancyDeath: true
   ResetKillStreakOnLeave: true
   ToSpawnOnJoin: true
+  # Opens the kit menu on joining the arena, for players without kp.arena.bypass (staff keep their state)
+  KitMenuOnJoin: false
   DeathParticles: true
   AbilitiesRequireKit: true
   AddOverflowItemsOnKit: true

@@ -66,6 +66,18 @@ public class JoinListener implements Listener {
 
 		arena.addPlayer(p, config.getBoolean("Arena.ToSpawnOnJoin"),
 				config.getBoolean("Arena.GiveItemsOnJoin"));
+
+		// Arena.KitMenuOnJoin: the kit menu opens by itself, so a new player sees what to do first. Two seconds
+		// later: a Bedrock client is still loading the world at join and would drop the form.
+		if (config.getBoolean("Arena.KitMenuOnJoin")) {
+			plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
+				if (p.isOnline() && Toolkit.inArena(p) && !arena.getKits().playerHasKit(p.getName())) {
+					arena.getMenus().getKitMenu().open(p);
+				}
+			}, KIT_MENU_DELAY_TICKS);
+		}
 	}
+
+	private static final long KIT_MENU_DELAY_TICKS = 40;
 
 }

@@ -30,8 +30,9 @@ import java.util.TreeMap;
  */
 final class KitForms {
 
-	// The network's gray-and-white look; a form button is light gray, so its text stays dark: the name in the
-	// button's own color, the ability under it in dark gray
+	// The network's gray-and-white look; a form button is light gray, so its text stays dark. Titles and kit
+	// names in bold, in the button's own color; the ability under a name plain dark gray
+	private static final String BOLD = "§l";
 	private static final String BUTTON_DETAIL = "§8";
 
 	/** A spyglass for Preview: a Bedrock game texture, as BedrockIcon in menu.yml. */
@@ -73,11 +74,11 @@ final class KitForms {
 		}
 
 		List<String> paths = new ArrayList<>(kits.values());
-		SimpleForm.Builder form = SimpleForm.builder().title(plain(menu.fetchString("Menu.General.Title")));
+		SimpleForm.Builder form = SimpleForm.builder().title(BOLD + plain(menu.fetchString("Menu.General.Title")));
 		for (String path : paths) {
 			String summary = firstLine(menu.getStringList(path + ".Lore"));
-			button(form, plain(menu.fetchString(path + ".Name"))
-					+ (summary.isEmpty() ? "" : "\n" + BUTTON_DETAIL + summary), icon(menu, path));
+			button(form, BOLD + plain(menu.fetchString(path + ".Name"))
+					+ (summary.isEmpty() ? "" : "\n§r" + BUTTON_DETAIL + summary), icon(menu, path));
 		}
 		form.validResultHandler(response -> openKit(player, paths.get(response.clickedButtonId())));
 
@@ -111,7 +112,7 @@ final class KitForms {
 		}
 
 		SimpleForm.Builder form = SimpleForm.builder()
-				.title(plain(menu.fetchString(path + ".Name")))
+				.title(BOLD + plain(menu.fetchString(path + ".Name")))
 				.content(String.join("\n", lore).trim());
 		button(form, "Select", icon(menu, path));
 		if (!preview.isEmpty()) {
