@@ -1,0 +1,144 @@
+package com.planetgallium.kitpvp.menu;
+
+import com.planetgallium.kitpvp.Game;
+import com.planetgallium.kitpvp.util.Resource;
+import com.planetgallium.kitpvp.util.Toolkit;
+import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
+import org.bukkit.configuration.ConfigurationSection;
+import org.bukkit.entity.Player;
+import org.geysermc.cumulus.form.SimpleForm;
+import org.geysermc.floodgate.api.FloodgateApi;
+import org.geysermc.floodgate.api.player.FloodgatePlayer;
+import org.geysermc.floodgate.util.InputMode;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.TreeMap;
+
+/**
+ * The kit menu as native Bedrock forms, for players on a touch screen.
+ * <p>
+ * A phone or tablet squeezes a large chest menu until its items no longer sit where they are drawn, and a Bedrock
+ * client has a single kind of click, so the chest menu's right click (preview) cannot be reached at all. These
+ * players get a list of the kits instead; picking one shows its lore with Select, Preview and Back. The buttons run
+ * the same Left-Click and Right-Click commands from menu.yml as the chest menu.
+ * <p>
+ * Only loaded once Floodgate is known to be enabled: KitMenu checks before touching this class.
+ */
+final class KitForms {
+
+	private KitForms() {
+	}
+
+	/**
+	 * Opens the kit list as a form when the player is on Bedrock with a touch screen.
+	 *
+	 * @return whether a form was sent; false leaves the player to the chest menu
+	 */
+	static boolean openIfTouch(Player player) {
+		FloodgatePlayer bedrock = FloodgateApi.getInstance().getPlayer(player.getUniqueId());
+		if (bedrock == null || bedrock.getInputMode() != InputMode.TOUCH) {
+			return false;
+		}
+
+		Resource menu = Game.getInstance().getResources().getMenu();
+		ConfigurationSection section = menu.getConfigurationSection("Menu.Items");
+		if (section == null) {
+			return false;
+		}
+
+		// The kits in the chest's slot order; items without a Left-Click command (decoration, close) are left out
+		TreeMap<Integer, String> kits = new TreeMap<>();
+		for (String key : section.getKeys(false)) {
+			try {
+				String path = "Menu.Items." + key;
+				if (menu.contains(path + ".Commands.Left-Click")) {
+					kits.put(Integer.parseInt(key), path);
+				}
+			} catch (NumberFormatException ignored) {
+			}
+		}
+		if (kits.isEmpty()) {
+			return false;
+		}
+
+		List<String> paths = new ArrayList<>(kits.values());
+		SimpleForm.Builder form = SimpleForm.builder().title(plain(menu.fetchString("Menu.General.Title")));
+		for (String path : paths) {
+			String summary = firstLine(menu.getStringList(path + ".Lore"));
+			form.button(plain(menu.fetchString(path + ".Name")) + (summary.isEmpty() ? "" : "\n§8" + summary));
+		}
+		form.validResultHandler(response -> openKit(player, paths.get(response.clickedButtonId())));
+
+		bedrock.sendForm(form.build());
+		return true;
+	}
+
+	/** One kit: its lore, then Select, Preview when the kit has one, and Back to the list. */
+	private static void openKit(Player player, String path) {
+		Resource menu = Game.getInstance().getResources().getMenu();
+		List<String> select = menu.getStringList(path + ".Commands.Left-Click");
+		List<String> preview = menu.contains(path + ".Commands.Right-Click") ?
+				menu.getStringList(path + ".Commands.Right-Click") : new ArrayList<>();
+
+		List<String> lore = new ArrayList<>();
+		for (String line : menu.getStringList(path + ".Lore")) {
+			lore.add(Toolkit.translate(line));
+		}
+
+		SimpleForm.Builder form = SimpleForm.builder()
+				.title(plain(menu.fetchString(path + ".Name")))
+				.content(String.join("\n", lore).trim())
+				.button("Select");
+		if (!preview.isEmpty()) {
+			form.button("Preview");
+		}
+		form.button("Back");
+
+		form.validResultHandler(response -> {
+			int clicked = response.clickedButtonId();
+			if (clicked == 0) {
+				run(player, select);
+			} else if (clicked == 1 && !preview.isEmpty()) {
+				run(player, preview);
+			} else {
+				// Back: on the main thread, where the menu reads its config
+				Bukkit.getScheduler().runTask(Game.getInstance(), () -> {
+					if (player.isOnline()) {
+						openIfTouch(player);
+					}
+				});
+			}
+		});
+
+		FloodgateApi.getInstance().sendForm(player.getUniqueId(), form.build());
+	}
+
+	/** Form answers arrive off the main thread; the menu's commands run on it, as from the chest menu. */
+	private static void run(Player player, List<String> commands) {
+		Bukkit.getScheduler().runTask(Game.getInstance(), () -> {
+			if (player.isOnline()) {
+				Toolkit.runCommands(player, commands, "none", "none");
+			}
+		});
+	}
+
+	/** Without color codes: a form button is light gray, on which the menu's white names would not show. */
+	private static String plain(String text) {
+		String stripped = ChatColor.stripColor(Toolkit.translate(text == null ? "" : text));
+		return stripped == null ? "" : stripped.trim();
+	}
+
+	/** The first lore line with text in it, such as the kit's ability, for the button's second line. */
+	private static String firstLine(List<String> lore) {
+		for (String line : lore) {
+			String text = plain(line);
+			if (!text.isEmpty()) {
+				return text;
+			}
+		}
+		return "";
+	}
+
+}

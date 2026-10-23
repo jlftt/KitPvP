@@ -1,6 +1,7 @@
 package com.planetgallium.kitpvp.menu;
 
 import com.planetgallium.kitpvp.util.*;
+import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
@@ -98,6 +99,15 @@ public class KitMenu {
 	}
 
 	public void open(Player p) {
+		// Phones and tablets get native forms instead of the chest (Menu.General.BedrockForms, on by default).
+		// KitForms is only touched once Floodgate is enabled, as it needs Floodgate's classes.
+		if (Toolkit.isBedrockPlayer(p) && Bukkit.getPluginManager().isPluginEnabled("floodgate")
+				&& (!resources.getMenu().contains("Menu.General.BedrockForms")
+						|| resources.getMenu().getBoolean("Menu.General.BedrockForms"))
+				&& KitForms.openIfTouch(p)) {
+			return;
+		}
+
 		if (javaContents == null) {
 			build();
 		}

@@ -4,7 +4,7 @@ main: com.planetgallium.kitpvp.Game
 version: ${project.version}
 description: The ultimate all-in-one KitPvP plugin.
 website: https://www.spigotmc.org/resources/27107/
-softdepend: [PlaceholderAPI, WorldGuard]
+softdepend: [PlaceholderAPI, WorldGuard, floodgate]
 api-version: 1.13
 
 commands:

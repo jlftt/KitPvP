@@ -12,6 +12,9 @@ Menu:
       - '&fRight-click to preview.'
       Bedrock:
       - '&fClick to select.'
+    # Bedrock players on a phone or tablet get the kits as native forms (list, then Select / Preview / Back)
+    # instead of this chest, which a small screen squeezes out of shape. Needs Floodgate on this server.
+    BedrockForms: true
   Items:
     10:
       Name: '&a&lFighter Kit'

@@ -6,7 +6,7 @@
 
     <groupId>com.planetgallium</groupId>
     <artifactId>KitPvP</artifactId>
-    <version>2.3.13</version>
+    <version>2.3.14</version>
     <packaging>jar</packaging>
 
     <name>${project.artifactId}</name>
@@ -166,6 +166,12 @@
             <version>3.36.0.3</version>
             <scope>provided</scope> <!-- already shaded in Spigot jar -->
         </dependency>
+        <dependency>
+            <groupId>org.geysermc.floodgate</groupId>
+            <artifactId>api</artifactId>
+            <version>2.2.5-SNAPSHOT</version>
+            <scope>provided</scope>
+        </dependency>
     </dependencies>
 
     <repositories>
@@ -180,6 +186,10 @@
         <repository>
             <id>sk89q-repo</id>
             <url>https://maven.enginehub.org/repo/</url>
+        </repository>
+        <repository>
+            <id>opencollab</id>
+            <url>https://repo.opencollab.dev/main/</url>
         </repository>
     </repositories>
 </project>
