@@ -55,7 +55,7 @@ public class Arena {
 	}
 	
 	// Game mode applied when a player joins or respawns in the arena (Arena.GameModeOnSpawn, SURVIVAL by default)
-	private GameMode getSpawnGameMode() {
+	public GameMode getSpawnGameMode() {
 		if (config.contains("Arena.GameModeOnSpawn")) {
 			try {
 				return GameMode.valueOf(config.fetchString("Arena.GameModeOnSpawn").trim().toUpperCase());

@@ -534,6 +534,13 @@ public class MainCommand implements CommandExecutor {
         }
 
         arena.getKits().resetPlayerKit(p.getName());
+
+        // Back to how the arena starts: its spawn game mode (Arena.GameModeOnSpawn) and one of its spawns.
+        // Arena.SpawnOnClear: false keeps the player where they are, in their game mode.
+        if (!config.contains("Arena.SpawnOnClear") || config.getBoolean("Arena.SpawnOnClear")) {
+            p.setGameMode(arena.getSpawnGameMode());
+            arena.toSpawn(p, p.getWorld().getName());
+        }
     }
 
     private void sendStatsMessage(CommandSender receiver, String username) {

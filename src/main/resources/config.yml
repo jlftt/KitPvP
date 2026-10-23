@@ -118,6 +118,8 @@ Arena:
   PreventArenaSignUseWithKit: true
   KeepWeatherAtSunny: true
   GiveItemsOnClear: true
+  # /kp clear also puts the player back on an arena spawn, in the GameModeOnSpawn game mode
+  SpawnOnClear: true
   GiveItemsOnRespawn: true
   GiveItemsOnJoin: true
   NoKitProtection: true
