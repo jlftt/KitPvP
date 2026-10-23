@@ -10,6 +10,7 @@ import org.bukkit.entity.Player;
 import org.geysermc.cumulus.form.SimpleForm;
 import org.geysermc.floodgate.api.FloodgateApi;
 import org.geysermc.floodgate.api.player.FloodgatePlayer;
+import org.geysermc.floodgate.util.DeviceOs;
 import org.geysermc.floodgate.util.InputMode;
 
 import java.util.ArrayList;
@@ -38,7 +39,7 @@ final class KitForms {
 	 */
 	static boolean openIfTouch(Player player) {
 		FloodgatePlayer bedrock = FloodgateApi.getInstance().getPlayer(player.getUniqueId());
-		if (bedrock == null || bedrock.getInputMode() != InputMode.TOUCH) {
+		if (bedrock == null || !isPhoneOrTablet(bedrock)) {
 			return false;
 		}
 
@@ -73,6 +74,20 @@ final class KitForms {
 
 		bedrock.sendForm(form.build());
 		return true;
+	}
+
+	/**
+	 * A touch screen, or a phone or tablet whatever its input: the input mode does not always reach the server (it
+	 * may be missing or unknown, as it seemed for an iPhone joining through Geyser's NetherNet), and a phone's screen stays small
+	 * with a controller too.
+	 */
+	private static boolean isPhoneOrTablet(FloodgatePlayer bedrock) {
+		if (bedrock.getInputMode() == InputMode.TOUCH) {
+			return true;
+		}
+		DeviceOs device = bedrock.getDeviceOs();
+		return device == DeviceOs.GOOGLE || device == DeviceOs.IOS || device == DeviceOs.AMAZON
+				|| device == DeviceOs.WINDOWS_PHONE;
 	}
 
 	/** One kit: its lore, then Select, Preview when the kit has one, and Back to the list. */
