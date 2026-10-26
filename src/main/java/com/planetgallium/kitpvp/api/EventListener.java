@@ -25,7 +25,8 @@ public class EventListener implements Listener {
 	
 	@EventHandler
 	public void onAbility(PlayerInteractEvent e) {
-		if (e.getAction() == Action.RIGHT_CLICK_AIR || e.getAction() == Action.RIGHT_CLICK_BLOCK) {
+		// Either click: on a Bedrock touch screen a tap is a left click, and a right click needs a long press
+		if (e.getAction() != Action.PHYSICAL) {
 			if (Toolkit.inArena(e.getPlayer())) {
 				Player p = e.getPlayer();
 				ItemStack currentItem = Toolkit.getHandItemForInteraction(e);

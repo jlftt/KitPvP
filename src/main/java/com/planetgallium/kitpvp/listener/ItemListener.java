@@ -25,6 +25,7 @@ import org.bukkit.event.entity.EntityDamageEvent.DamageCause;
 import org.bukkit.event.entity.EntityShootBowEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.inventory.meta.PotionMeta;
@@ -66,14 +67,10 @@ public class ItemListener implements Listener {
 		boolean rightClick = e.getAction() == Action.RIGHT_CLICK_AIR || e.getAction() == Action.RIGHT_CLICK_BLOCK;
 		boolean leftClick = e.getAction() == Action.LEFT_CLICK_AIR || e.getAction() == Action.LEFT_CLICK_BLOCK;
 
-		// The arena items (kit selector, back to the hub...) answer a left click too: on a Bedrock touch screen a
-		// tap is a left click, and a right click needs a long press nobody thinks of. Abilities stay right click.
-		if (leftClick) {
-			useArenaItem(e, p, Toolkit.getHandItemForInteraction(e));
-			return;
-		}
-
-		if (rightClick) {
+		// The arena items and the abilities answer a left click too: on a Bedrock touch screen a tap is a left
+		// click, and a right click needs a long press nobody thinks of. Splash potions excepted, which only a
+		// right click throws.
+		if (rightClick || leftClick) {
 
 			ItemStack interactedItem = Toolkit.getHandItemForInteraction(e);
 			ItemMeta interactedItemMeta = interactedItem.getItemMeta();
@@ -98,7 +95,7 @@ public class ItemListener implements Listener {
 				CacheManager.getPotionSwitcherUsers().add(p.getName());
 				Toolkit.setHandItemForInteraction(e, createWitchPotion());
 
-			} else if (isSplashPotion(interactedItem)) {
+			} else if (rightClick && isSplashPotion(interactedItem)) {
 				witchAbility(e, p, interactedItem, interactedItemMeta);
 
 			} else if ((Toolkit.hasMatchingMaterial(interactedItem, "SLIME_BALL") ||
@@ -158,6 +155,12 @@ public class ItemListener implements Listener {
 				isBuiltInAbilityItem(p, kitName, interactedItem);
 	}
 
+	/** Whether the item is that kit's ability item, without the checks on the player isAbility makes. */
+	private boolean isAbilityItemOf(ItemStack item, String kitName, String abilityMaterialName) {
+		return item.getType() == Toolkit.safeMaterial(abilityMaterialName) &&
+				Toolkit.hasMatchingDisplayName(item, abilities.fetchString("Abilities." + kitName + ".Item.Name"));
+	}
+
 	@EventHandler
 	public void onInteract(PlayerInteractEntityEvent e) {
 		Player damager = e.getPlayer();
@@ -178,6 +181,36 @@ public class ItemListener implements Listener {
 			} else if (isAbility(damager, interactedItem, "Vampire", "GHAST_TEAR")) {
 				vampireAbliity(e, damager, damagedPlayer, interactedItem);
 			}
+		}
+	}
+
+	/** While a hit runs the ability above: the ability's own damage is a hit too, and must not run it again. */
+	private boolean hitAbility;
+
+	/**
+	 * A hit with Thunderbolt's or Vampire's item uses it, as clicking the player does: on a Bedrock touch screen
+	 * a tap on a player is a hit, and a right click needs a long press.
+	 */
+	@EventHandler(ignoreCancelled = true)
+	public void onAbilityHit(EntityDamageByEntityEvent e) {
+		if (hitAbility || e.getCause() != DamageCause.ENTITY_ATTACK
+				|| !(e.getDamager() instanceof Player) || !(e.getEntity() instanceof Player)) {
+			return;
+		}
+		Player damager = (Player) e.getDamager();
+		if (!Toolkit.inArena(damager)) {
+			return;
+		}
+		ItemStack held = damager.getInventory().getItemInMainHand();
+		if (!isAbilityItemOf(held, "Thunderbolt", "BLAZE_ROD") && !isAbilityItemOf(held, "Vampire", "GHAST_TEAR")) {
+			return;
+		}
+		e.setCancelled(true);
+		hitAbility = true;
+		try {
+			onInteract(new PlayerInteractEntityEvent(damager, e.getEntity(), EquipmentSlot.HAND));
+		} finally {
+			hitAbility = false;
 		}
 	}
 
