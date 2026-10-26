@@ -69,8 +69,8 @@ public class SoupListener implements Listener {
 
 		Player p = e.getPlayer();
 
-		if (Toolkit.inArena(p) &&
-				(e.getAction() == Action.RIGHT_CLICK_AIR || e.getAction() == Action.RIGHT_CLICK_BLOCK)) {
+		// Either click: on a Bedrock touch screen a tap is a left click, and a right click needs a long press
+		if (Toolkit.inArena(p) && e.getAction() != Action.PHYSICAL) {
 			if (Toolkit.hasMatchingMaterial(Toolkit.getHandItemForInteraction(e), "MUSHROOM_STEW")) {
 				e.setCancelled(true);
 
