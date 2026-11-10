@@ -10,13 +10,13 @@ import com.planetgallium.kitpvp.api.PlayerSelectKitEvent;
 import com.planetgallium.kitpvp.item.AttributeParser;
 import com.planetgallium.kitpvp.util.*;
 import org.bukkit.Bukkit;
+import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 
-import java.lang.reflect.InvocationTargetException;
 import java.util.*;
 
 public class Kits {
@@ -127,11 +127,9 @@ public class Kits {
             kit.setInventoryItem(i, item);
         }
         
-        if (Toolkit.versionToNumber() >= 19) {
-            ItemStack offhandItem = p.getInventory().getItemInOffHand();
-            if (offhandItem != null) {
-                kit.setOffhand(offhandItem);
-            }
+        ItemStack offhandItem = p.getInventory().getItemInOffHand();
+        if (offhandItem.getType() != Material.AIR) {
+            kit.setOffhand(offhandItem);
         }
 
         //          ABILITY         //
@@ -157,8 +155,7 @@ public class Kits {
         return kit;
     }
 
-    private Kit createKitFromResource(Resource resource) throws IllegalAccessException, NoSuchMethodException,
-            InvocationTargetException {
+    private Kit createKitFromResource(Resource resource) {
         Kit kit = new Kit(trimName(resource.getName()));
 
         kit.setPermission(resource.fetchString("Kit.Permission"));
@@ -258,12 +255,7 @@ public class Kits {
     private Kit loadKitFromCacheOrCreate(String kitName) {
         if (!CacheManager.getKitCache().containsKey(kitName)) {
             if (isKit(kitName)) {
-                Resource kit = resources.getKit(kitName);
-                try {
-                    CacheManager.getKitCache().put(kitName, createKitFromResource(kit));
-                } catch (IllegalAccessException | NoSuchMethodException | InvocationTargetException e) {
-                    e.printStackTrace();
-                }
+                CacheManager.getKitCache().put(kitName, createKitFromResource(resources.getKit(kitName)));
             } else {
                 Toolkit.printToConsole("&7[&b&lKIT-PVP&7] &cNo kit with name " + kitName + " found in the kits folder." +
                         " Try reloading the server.");
@@ -284,14 +276,32 @@ public class Kits {
         return loadKitFromCacheOrCreate(kitName);
     }
 
+    /**
+     * True when the kit is loaded and its file is still there. Exact case, like the kit names everywhere else.
+     */
     public boolean isKit(String kitName) {
-        return resources.getPluginDirectoryFiles("kits", false).contains(kitName);
+        Resource kit = resources.getKit(kitName);
+        return kit != null && kit.getFile().exists();
+    }
+
+    /**
+     * True when a kit file already uses this name in any letter case: Windows file names ignore case, so creating
+     * "fighter" would overwrite Fighter.yml.
+     */
+    public boolean isKitNameTaken(String kitName) {
+        for (String existingKitName : resources.getPluginDirectoryFiles("kits", false)) {
+            if (existingKitName.equalsIgnoreCase(kitName)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public void deleteKit(String kitName) {
         resources.removeResource(kitName + ".yml");
         plugin.getDatabase().deleteKitCooldownTable(kitName);
         CacheManager.getKitCache().remove(kitName);
+        CacheManager.getPreviewMenuCache().remove(kitName);
     }
 
     public void setPlayerKit(String playerName, String kitName) {
@@ -307,8 +317,9 @@ public class Kits {
     }
 
     private String trimName(String kitNameWithFileEnding) {
-        String[] splitName = kitNameWithFileEnding.split(".yml");
-        return splitName[0];
+        return kitNameWithFileEnding.endsWith(".yml")
+                ? kitNameWithFileEnding.substring(0, kitNameWithFileEnding.length() - 4)
+                : kitNameWithFileEnding;
     }
 
 }

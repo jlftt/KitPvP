@@ -50,7 +50,7 @@ Messages:
     InvalidType: '%prefix% &cInvalid type "%type%". Available types: %types%.'
     InvalidNumber: '%prefix% &cInvalid number "%number%".'
     OverflowItemsLost: '%prefix% &c%number% items could not fit in your inventory and were lost.'
-    InvalidKitName: '%prefix% &cFailed to create kit due to invalid kit name (contains +, -)'
+    InvalidKitName: '%prefix% &cInvalid kit name: use letters, numbers and _ only.'
   Stats:
     Message:
     - '&7&m                                &r'

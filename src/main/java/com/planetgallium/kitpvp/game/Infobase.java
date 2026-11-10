@@ -5,10 +5,8 @@ import com.planetgallium.database.Record;
 import com.planetgallium.kitpvp.Game;
 import com.planetgallium.kitpvp.util.*;
 import org.bukkit.Bukkit;
-import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
 
-import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -38,11 +36,9 @@ public class Infobase {
                 new Field("experience", DataType.INTEGER),
                 new Field("level", DataType.INTEGER)));
 
-        // Kit Cooldowns
+        // Kit Cooldowns (hidden files are already left out of the list)
         for (String kitName : resources.getPluginDirectoryFiles("kits", false)) {
-            if (!kitName.startsWith(".")) { // ignore hidden files
-                addKitCooldownTable(kitName);
-            }
+            addKitCooldownTable(kitName);
         }
     }
 
@@ -86,12 +82,13 @@ public class Infobase {
                     new Field("level", DataType.INTEGER,
                             resources.getLevels().getInt("Levels.Options.Minimum-Level")));
             statsTable.insertRecord(statsRecord);
+            playerRecord = statsRecord; // same values as the row just written, no need to read it back
         } else {
             // check if stored username needs changing if a player changed their username
             String storedUsername = (String) playerRecord.getFieldValue("username");
             String currentUsername = p.getName();
 
-            if (!storedUsername.equals(currentUsername)) {
+            if (!currentUsername.equals(storedUsername)) {
                 Field updatedUsernameField = new Field("username", DataType.STRING, p.getName(),
                         Infobase.USERNAME_MAX_CHARACTERS);
                 statsTable.updateRecord(uuidField, updatedUsernameField);
@@ -99,38 +96,7 @@ public class Infobase {
         }
 
         // put stats into stats cache
-        playerRecord = statsTable.getRecord(uuidField("uuid", p.getUniqueId().toString()));
         CacheManager.getStatsCache().put(p.getName(), recordToPlayerData(playerRecord));
-    }
-
-    public void exportStats() {
-        Resource statsResource = new Resource(plugin, "stats.yml");
-        statsResource.load();
-
-        ConfigurationSection statsSection = statsResource.getConfigurationSection("Stats.Players");
-
-        for (String uuid : statsSection.getKeys(false)) {
-            ConfigurationSection playerSection = statsSection.getConfigurationSection(uuid);
-
-            Field uuidField = uuidField("uuid", uuid);
-            Field usernameField = new Field("username", DataType.STRING,
-                    playerSection.getString("Username"), Infobase.USERNAME_MAX_CHARACTERS);
-            Field killsField = new Field("kills", DataType.INTEGER, playerSection.getInt("Kills"));
-            Field deathsField = new Field("deaths", DataType.INTEGER, playerSection.getInt("Deaths"));
-            Field experienceField =
-                    new Field("experience", DataType.INTEGER, playerSection.getInt("Experience"));
-            Field levelField = new Field("level", DataType.INTEGER, playerSection.getInt("Level"));
-
-            Record playerStatsRecord = new Record(uuidField, usernameField, killsField, deathsField, experienceField,
-                    levelField);
-
-            statsTable.updateOrInsertRecord(playerStatsRecord);
-        }
-
-        File renamedStatsFile = new File("old_stats.yml");
-        if (!statsResource.getFile().renameTo(renamedStatsFile)) {
-            Toolkit.printToConsole("&7[&b&lKIT-PVP&7] &cThere was a problem renaming stats.yml to old_stats.yml.");
-        }
     }
 
     public String usernameToUUID(String username) {
@@ -154,7 +120,9 @@ public class Infobase {
                 Record matchingRecord = matchingRecords.get(0);
 
                 String uuid = (String) matchingRecord.getFieldValue("uuid");
-                CacheManager.getUUIDCache().put(username, uuid);
+                if (uuid != null) {
+                    CacheManager.getUUIDCache().put(username, uuid);
+                }
                 return uuid;
             }
         }
@@ -193,10 +161,11 @@ public class Infobase {
         cleanupUnusedKitCooldownTables();
     }
 
-    public void cleanupUnusedKitCooldownTables() {
-        for (String tableName : database.getTables().keySet()) {
-            if (tableName.contains("_cooldowns")) {
-                String kitName = tableName.split("_cooldowns")[0];
+    // Drops the cooldown tables of kits whose file is gone (deleteTable takes them out of the map, hence the copy)
+    private void cleanupUnusedKitCooldownTables() {
+        for (String tableName : new ArrayList<>(database.getTables().keySet())) {
+            if (tableName.endsWith("_cooldowns")) {
+                String kitName = tableName.substring(0, tableName.length() - "_cooldowns".length());
                 if (!plugin.getArena().getKits().isKit(kitName)) {
                     database.deleteTable(tableName);
                 }
@@ -204,30 +173,9 @@ public class Infobase {
         }
     }
 
-    public void setData(String tableName, String identifier, Object data, DataType type, String username) {
-        if (usernameToUUID(username) == null) {
-            System.out.printf("[Database] Failed to set data; unknown player %s\n", username);
-            return;
-        }
-
-        if (verifyTableExists(tableName)) {
-            Table table = database.getTable(tableName);
-
-            Field uuidField = uuidField("username", username);
-            Record record = table.getRecord(uuidField);
-            Field fieldToUpdate = new Field(identifier, type, data);
-
-            if (record != null) {
-                table.updateRecord(uuidField, fieldToUpdate);
-            } else {
-                System.out.printf("[Database] Failed to set data; database does not contain player %s\n", username);
-            }
-        }
-    }
-
     public void setStatsData(String username, PlayerData playerData) {
         if (usernameToUUID(username) == null) {
-            System.out.printf("[Database] Failed to save stats; unknown player %s\n", username);
+            plugin.getLogger().warning("Failed to save stats; unknown player " + username);
             return;
         }
 
@@ -246,19 +194,14 @@ public class Infobase {
         }
 
         // Cooldowns
-        if (playerData.getKitCooldowns().size() > 0) {
+        if (!playerData.getKitCooldowns().isEmpty()) {
+            Field uuidField = uuidField("username", username);
             for (Map.Entry<String, Long> entry : playerData.getKitCooldowns().entrySet()) {
-                String kitNameWithCooldown = entry.getKey();
-                long timeKitLastUsed = entry.getValue();
-
-                String kitCooldownTableName = "{kit_name}_cooldowns"
-                                            .replace("{kit_name}", kitNameWithCooldown);
+                String kitCooldownTableName = entry.getKey() + "_cooldowns";
                 if (verifyTableExists(kitCooldownTableName)) {
-                    Table kitCooldownTable = database.getTable(kitCooldownTableName);
-                    Record cooldownRecord = new Record(uuidField("username", username),
-                            new Field("last_used", DataType.INTEGER, timeKitLastUsed));
-
-                    kitCooldownTable.updateOrInsertRecord(cooldownRecord);
+                    Record cooldownRecord = new Record(uuidField,
+                            new Field("last_used", DataType.INTEGER, entry.getValue()));
+                    database.getTable(kitCooldownTableName).updateOrInsertRecord(cooldownRecord);
                 }
             }
         }
@@ -273,11 +216,10 @@ public class Infobase {
             Table table = database.getTable(tableName);
             Record record = table.getRecord(uuidField("username", username));
 
+            // no row is normal here: a player who never took a kit has no row in its cooldown table
             if (record != null) {
                 return record.getFieldValue(identifier);
-            } /*else { // currently commented out because not being in a kit cooldown table prints this
-                System.out.printf("[Database] Failed to get data; database does not contain player %s\n", username);
-            } */
+            }
         }
         return null;
     }
@@ -312,7 +254,7 @@ public class Infobase {
         if (database.getTable(tableName) != null) {
             return true;
         }
-        System.out.printf("[Database] Failed to perform action; table %s does not exist\n", tableName);
+        plugin.getLogger().warning("Database table " + tableName + " does not exist");
         return false;
     }
 

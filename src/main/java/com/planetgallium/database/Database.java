@@ -10,8 +10,11 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.logging.Logger;
 
 public class Database {
+
+    private static final Logger LOGGER = Logger.getLogger("KitPvP");
 
     private DataSource dataSource;
     private final Map<String, Table> tables;
@@ -45,7 +48,7 @@ public class Database {
             testDatabaseConnection();
         } catch (SQLException exception) {
             exception.printStackTrace();
-            System.out.println("[Database] Connection to MySQL database failed. Using SQLite instead...");
+            LOGGER.warning("[Database] Connection to MySQL database failed. Using SQLite instead...");
             setupSQLite("storage.db");
         }
     }
@@ -73,9 +76,10 @@ public class Database {
     }
 
     public void deleteTable(String tableName) {
-        Table table = tables.get(tableName);
+        // Out of the map too: a dropped table left in it still passed every "table exists" check
+        Table table = tables.remove(tableName);
         if (table == null) {
-            System.out.printf("[Database] Failed to delete table %s; table not found\n", tableName);
+            LOGGER.warning("[Database] Failed to delete table " + tableName + "; table not found");
             return;
         }
 

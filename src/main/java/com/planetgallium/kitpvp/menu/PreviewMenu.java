@@ -41,7 +41,7 @@ public class PreviewMenu {
 			effectsLore.add("&7- " + type + " " + amplifierNonZeroBased + " (" + (infinite ? "Infinite" : (durationSeconds + "s")) + ")");
 		}
 
-		if (kit.getEffects().size() == 0) {
+		if (kit.getEffects().isEmpty()) {
 			effectsLore.add("&7None");
 		}
 

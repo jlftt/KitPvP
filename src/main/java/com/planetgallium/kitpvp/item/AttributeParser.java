@@ -14,8 +14,6 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.*;
 import org.bukkit.potion.*;
 
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.util.*;
 
 public class AttributeParser {
@@ -54,8 +52,7 @@ public class AttributeParser {
 
     }
 
-    public static ItemStack getItemStackFromPath(Resource resource, String path) throws IllegalAccessException,
-            NoSuchMethodException, InvocationTargetException {
+    public static ItemStack getItemStackFromPath(Resource resource, String path) {
         if (!resource.contains(path)) return null;
 
         ItemStack item = XMaterial.matchXMaterial(FALLBACK_ITEM_MATERIAL).parseItem();
@@ -72,10 +69,7 @@ public class AttributeParser {
         }
 
         if (resource.contains(path + ".Material")) {
-            String materialName = resource.fetchString(path + ".Material");
-            Material material = Toolkit.safeMaterial(materialName);
-
-            item.setType(material);
+            item.setType(Toolkit.safeMaterial(resource.fetchString(path + ".Material")));
         }
 
         if (resource.contains(path + ".Amount")) {
@@ -89,7 +83,7 @@ public class AttributeParser {
         //              CUSTOM ATTRIBUTES            //
 
         if (resource.contains(path + ".Effects")) {
-            item = setEffectsFromPath(item, resource, path);
+            setEffectsFromPath(item, resource, path + ".Effects");
         }
 
         if (Game.getInstance().getResources().getConfig().getBoolean("Arena.PreventItemDurabilityDamage")) {
@@ -108,22 +102,23 @@ public class AttributeParser {
             setCustomDurability(item, resource.getInt(path + ".Durability"));
         }
 
-        if (resource.contains(path + ".Enchantments")) {
+        ConfigurationSection enchantmentsSection = resource.getConfigurationSection(path + ".Enchantments");
+        if (enchantmentsSection != null) {
             Map<Enchantment, Integer> enchantments = new HashMap<>();
-            ConfigurationSection section = resource.getConfigurationSection(path + ".Enchantments");
 
-            for (String enchantmentName : section.getKeys(false)) {
-                Enchantment enchantment = FALLBACK_ITEM_ENCHANTMENT;
+            for (String enchantmentName : enchantmentsSection.getKeys(false)) {
+                Enchantment enchantment = null;
                 Optional<XEnchantment> enchantmentFromConfig = XEnchantment.matchXEnchantment(enchantmentName.toUpperCase());
                 if (enchantmentFromConfig.isPresent()) {
                     enchantment = enchantmentFromConfig.get().getEnchant();
-                } else {
-                    Toolkit.printToConsole(String.format("&7[&b&lKIT-PVP&7] &cUnknown enchantment [%s], defaulting to [THORNS].", enchantmentName));
                 }
-                int amplifier = resource.getInt(path + ".Enchantments." + enchantmentName);
+                if (enchantment == null) {
+                    Toolkit.printToConsole(String.format("&7[&b&lKIT-PVP&7] &cUnknown enchantment [%s], defaulting to [THORNS].", enchantmentName));
+                    enchantment = FALLBACK_ITEM_ENCHANTMENT;
+                }
+                int amplifier = enchantmentsSection.getInt(enchantmentName);
 
-                enchantments.put(enchantment != null ? enchantment : FALLBACK_ITEM_ENCHANTMENT,
-                        amplifier != 0 ? amplifier : FALLBACK_ITEM_ENCHANTMENT_AMPLIFIER);
+                enchantments.put(enchantment, amplifier != 0 ? amplifier : FALLBACK_ITEM_ENCHANTMENT_AMPLIFIER);
             }
 
             item.addUnsafeEnchantments(enchantments);
@@ -133,16 +128,11 @@ public class AttributeParser {
     }
 
     private static void setCustomDurability(ItemStack item, int damageAmount) {
-        if (Toolkit.versionToNumber() < 113) {
-            item.setDurability((short) damageAmount);
+        ItemMeta meta = item.getItemMeta();
 
-        } else if (Toolkit.versionToNumber() >= 113) {
-            ItemMeta meta = item.getItemMeta();
-
-            if (meta instanceof Damageable) {
-                ((Damageable) meta).setDamage(damageAmount);
-                item.setItemMeta(meta);
-            }
+        if (meta instanceof Damageable) {
+            ((Damageable) meta).setDamage(damageAmount);
+            item.setItemMeta(meta);
         }
     }
 
@@ -156,108 +146,95 @@ public class AttributeParser {
     }
 
     private static void dyeItem(ItemStack item, Color color) {
-        if (Toolkit.hasMatchingMaterial(item, "LEATHER_HELMET") ||
-                Toolkit.hasMatchingMaterial(item, "LEATHER_CHESTPLATE") ||
-                Toolkit.hasMatchingMaterial(item, "LEATHER_LEGGINGS") ||
-                Toolkit.hasMatchingMaterial(item, "LEATHER_BOOTS")) {
-
-            LeatherArmorMeta dyedMeta = (LeatherArmorMeta) item.getItemMeta();
-            dyedMeta.setColor(color);
-            item.setItemMeta(dyedMeta);
-        }
-    }
-
-    private static void setUnbreakable(ItemStack item) throws InvocationTargetException, IllegalAccessException, NoSuchMethodException {
         ItemMeta meta = item.getItemMeta();
 
-        if (Toolkit.versionToNumber() <= 114) {
-            Method spigotMethod = meta.getClass().getMethod("spigot");
-            spigotMethod.setAccessible(true);
-
-            Object spigotInstance = spigotMethod.invoke(meta);
-            Class spigotClass = spigotInstance.getClass();
-
-            Method setUnbreakableMethod = spigotClass.getDeclaredMethod("setUnbreakable", boolean.class);
-            setUnbreakableMethod.setAccessible(true);
-
-            setUnbreakableMethod.invoke(spigotInstance, true);
-        } else {
-            meta.setUnbreakable(true);
+        if (meta instanceof LeatherArmorMeta) {
+            ((LeatherArmorMeta) meta).setColor(color);
+            item.setItemMeta(meta);
         }
-
-        item.setItemMeta(meta);
     }
 
-    private static ItemStack setEffectsFromPath(ItemStack item, Resource resource, String path) {
-        String effectsPath = path + ".Effects";
-        String firstChildEffectName = resource.getConfigurationSection(effectsPath).getKeys(false).toArray()[0].toString();
-        String firstChildPath = path + ".Effects." + firstChildEffectName;
-        boolean isCustom = resource.contains(firstChildPath + ".Duration");
+    private static void setUnbreakable(ItemStack item) {
+        ItemMeta meta = item.getItemMeta();
 
-        if (Toolkit.versionToNumber() == 18 && !isCustom) {
-            return setVanillaEffectsFromPath(item, resource, effectsPath);
+        if (meta != null) {
+            meta.setUnbreakable(true);
+            item.setItemMeta(meta);
         }
+    }
+
+    /**
+     * An effect with a Duration makes every effect listed a custom one; without one, the first effect names the
+     * potion's base type, as a brewed potion.
+     */
+    private static void setEffectsFromPath(ItemStack item, Resource resource, String effectsPath) {
+        ConfigurationSection effectsSection = resource.getConfigurationSection(effectsPath);
+        if (effectsSection == null || effectsSection.getKeys(false).isEmpty()) {
+            return;
+        }
+
+        ItemMeta meta = item.getItemMeta();
+        if (!(meta instanceof PotionMeta)) {
+            Toolkit.printToConsole("&7[&b&lKIT-PVP&7] &cEffects at [" + effectsPath + "] in " + resource.getName() +
+                    " need a potion or tipped arrow; ignored.");
+            return;
+        }
+        PotionMeta potionMeta = (PotionMeta) meta;
+
+        String firstEffectName = effectsSection.getKeys(false).iterator().next();
+        boolean isCustom = effectsSection.contains(firstEffectName + ".Duration");
 
         if (isCustom) {
-            setCustomEffectsFromPath(item, resource, effectsPath);
+            setCustomEffects(potionMeta, effectsSection);
         } else {
-            setVanillaEffectsFromPath(item, resource, effectsPath);
-        }
-
-        return item;
-    }
-
-    private static ItemStack setVanillaEffectsFromPath(ItemStack item, Resource resource, String path) {
-        PotionMeta potionMeta = (PotionMeta) item.getItemMeta();
-
-        String firstChildEffectName = resource.getConfigurationSection(path).getKeys(false).toArray()[0].toString();
-        String firstChildPath = path + "." + firstChildEffectName;
-
-        PotionType potionType = XPotion.matchXPotion(firstChildEffectName).get().getPotionType();
-        boolean isUpgraded = resource.getBoolean(firstChildPath + ".Upgraded");
-        boolean isExtended = resource.getBoolean(firstChildPath + ".Extended");
-
-        if (Toolkit.versionToNumber() == 18) {
-            boolean isSplash = resource.fetchString(path.replace("Effects", "") + ".Type").equals("SPLASH_POTION");
-            Potion potion = Potion.fromItemStack(item);
-            potion.setSplash(isSplash);
-            potion.setType(potionType);
-            potion.setLevel(getVanillaLevel(potionType, isUpgraded));
-            if (isExtended) potion.setHasExtendedDuration(true);
-
-            return potion.toItemStack(item.getAmount());
-        } else if (Toolkit.versionToNumber() >= 19) {
-            potionMeta.setBasePotionData(new PotionData(potionType, isExtended, isUpgraded));
+            setVanillaEffect(potionMeta, effectsSection, firstEffectName);
         }
 
         item.setItemMeta(potionMeta);
-
-        return item;
     }
 
-    private static void setCustomEffectsFromPath(ItemStack item, Resource resource, String path) {
-        PotionMeta potionMeta = (PotionMeta) item.getItemMeta();
+    private static void setVanillaEffect(PotionMeta potionMeta, ConfigurationSection effectsSection, String effectName) {
+        // A potion type name (SWIFTNESS, TURTLE_MASTER: what /kp create writes), else an effect name (SPEED)
+        PotionType baseType = potionTypeNamed(effectName);
+        if (baseType == null) {
+            baseType = XPotion.matchXPotion(effectName).map(XPotion::getPotionType).orElse(null);
+        }
+        if (baseType == null) {
+            Toolkit.printToConsole("&7[&b&lKIT-PVP&7] &cUnknown potion type [" + effectName + "]; potion left plain.");
+            return;
+        }
 
-        for (String effectName : resource.getConfigurationSection(path).getKeys(false)) {
-            String specificPath = path + "." + effectName;
+        PotionType type = baseType;
+        if (effectsSection.getBoolean(effectName + ".Upgraded")) {
+            type = variantOf(baseType, "STRONG_");
+        } else if (effectsSection.getBoolean(effectName + ".Extended")) {
+            type = variantOf(baseType, "LONG_");
+        }
+
+        potionMeta.setBasePotionType(type);
+    }
+
+    /** The level II or extended version of a potion type, or the type itself when it has none. */
+    private static PotionType variantOf(PotionType baseType, String prefix) {
+        PotionType variant = potionTypeNamed(prefix + baseType.name());
+        return variant != null ? variant : baseType;
+    }
+
+    private static PotionType potionTypeNamed(String name) {
+        try {
+            return PotionType.valueOf(name.toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException noSuchType) {
+            return null;
+        }
+    }
+
+    private static void setCustomEffects(PotionMeta potionMeta, ConfigurationSection effectsSection) {
+        for (String effectName : effectsSection.getKeys(false)) {
+            int amplifierNonZeroBased = effectsSection.getInt(effectName + ".Amplifier");
             potionMeta.addCustomEffect(new PotionEffect(Toolkit.safePotionEffectType(effectName),
-                    resource.getInt(specificPath + ".Duration") * 20,
-                    resource.getInt(specificPath + ".Amplifier") - 1), true);
+                    Toolkit.parsePotionEffectDuration(effectsSection.getInt(effectName + ".Duration")),
+                    Math.max(0, amplifierNonZeroBased - 1)), true);
         }
-
-        item.setItemMeta(potionMeta);
-    }
-
-    private static int getVanillaLevel(PotionType type, boolean isUpgraded) {
-        switch (type) {
-            case INVISIBILITY: case FIRE_RESISTANCE: case NIGHT_VISION:
-                case SLOWNESS: case WATER_BREATHING: case WEAKNESS:
-                return 1;
-            case INSTANT_DAMAGE: case INSTANT_HEAL: case JUMP: case POISON:
-                case REGEN: case SPEED: case STRENGTH:
-                return isUpgraded ? 2 : 1;
-        }
-        return 1;
     }
 
 }

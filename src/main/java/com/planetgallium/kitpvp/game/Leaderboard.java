@@ -2,7 +2,6 @@ package com.planetgallium.kitpvp.game;
 
 import com.planetgallium.database.TopEntry;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
@@ -18,7 +17,7 @@ public class Leaderboard {
         this.maxSize = maxSize;
     }
 
-    public void updateRankings(TopEntry playerEntry) {
+    public synchronized void updateRankings(TopEntry playerEntry) {
         if (rankingsContainPlayer(playerEntry.getIdentifier())) {
             // Update the player's score if they are already in the leaderboard
             updatePlayerEntryInRanking(playerEntry);
@@ -33,27 +32,7 @@ public class Leaderboard {
         sortRankings();
     }
 
-//    public void updateRankings(TopEntry playerEntry) {
-//        if (rankings.size() < maxSize) {
-//            rankings.add(playerEntry);
-//            sortRankings();
-//        } else if (rankings.size() == maxSize) {
-//            TopEntry lowestRankingPlayer = rankings.get(rankings.size() - 1);
-//            if (playerEntry.getValue() > lowestRankingPlayer.getValue()) {
-//                if (!rankingsContainPlayer(playerEntry.getIdentifier())) {
-//                    // remove lowest ranking player and add new better player
-//                    rankings.remove(rankings.size() - 1);
-//                    rankings.add(playerEntry);
-//                } else {
-//                    // update ranking for player already in leaderboard
-//                    updatePlayerEntryInRanking(playerEntry);
-//                }
-//                sortRankings(); // resort in both above cases
-//            }
-//        }
-//    }
-
-    public TopEntry getNRanking(int n) { // n = 1 is top player
+    public synchronized TopEntry getNRanking(int n) { // n = 1 is top player
         if (n <= rankings.size() && n >= 1) {
             return rankings.get(n - 1);
         }
@@ -78,7 +57,7 @@ public class Leaderboard {
         }
     }
 
-    public void sortRankings() {
+    public synchronized void sortRankings() {
         Collections.sort(rankings);
     }
 

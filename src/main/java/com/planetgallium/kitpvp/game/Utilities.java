@@ -1,9 +1,9 @@
 package com.planetgallium.kitpvp.game;
 
 import com.planetgallium.kitpvp.Game;
+import com.planetgallium.kitpvp.api.Kit;
 import com.planetgallium.kitpvp.util.Resources;
 import com.planetgallium.kitpvp.util.WorldGuardAPI;
-import com.planetgallium.kitpvp.util.WorldGuardFlag;
 import me.clip.placeholderapi.PlaceholderAPI;
 import org.bukkit.entity.Player;
 
@@ -81,11 +81,8 @@ public class Utilities {
         }
 
         if (s.contains("%kit%")) {
-            if (arena.getKits().getKitOfPlayer(username) != null) {
-                s = s.replace("%kit%", arena.getKits().getKitOfPlayer(username).getName());
-            } else {
-                s = s.replace("%kit%", "None");
-            }
+            Kit kit = arena.getKits().getKitOfPlayer(username);
+            s = s.replace("%kit%", kit != null ? kit.getName() : "None");
         }
 
         return s;
@@ -93,7 +90,7 @@ public class Utilities {
 
     public boolean isCombatActionPermittedInRegion(Player p) {
         if (plugin.hasWorldGuard()) {
-            if (WorldGuardAPI.getInstance().allows(p, WorldGuardFlag.PVP.getFlag())) {
+            if (WorldGuardAPI.allowsPvp(p)) {
                 return true;
             }
 

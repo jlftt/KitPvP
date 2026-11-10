@@ -50,11 +50,7 @@ public class KillStreaks implements Listener {
 	
 	@EventHandler
 	public void createStreak(PlayerJoinEvent e) {
-		Player p = e.getPlayer();
-
-		if (!kills.containsKey(p.getName())) {
-			kills.put(e.getPlayer().getName(), 0);
-		}
+		kills.putIfAbsent(e.getPlayer().getName(), 0);
 	}
 	
 	@EventHandler
@@ -119,11 +115,8 @@ public class KillStreaks implements Listener {
 	}
 	
 	public int getStreak(String username) {
-		if (!kills.containsKey(username)) {
-			kills.put(username, 0);
-		}
-
-		return kills.get(username);
+		// reading no longer stores a 0 for every name asked (placeholders ask for offline names too)
+		return kills.getOrDefault(username, 0);
 	}
 	
 	public void resetStreak(Player p) {

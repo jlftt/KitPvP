@@ -2,7 +2,6 @@ package com.planetgallium.kitpvp.util;
 
 import com.planetgallium.database.TopEntry;
 import com.planetgallium.kitpvp.Game;
-import org.apache.commons.lang.StringUtils;
 import org.bukkit.entity.Player;
 import com.planetgallium.kitpvp.game.Arena;
 
@@ -11,11 +10,15 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class Placeholders extends PlaceholderExpansion {
 
 	private final Arena arena;
 	private final Map<String, String> placeholderAPItoBuiltIn;
+	// placeholders are asked for on every scoreboard/tab refresh: a bad one is reported once, not each time
+	private final Set<String> reportedIdentifiers = ConcurrentHashMap.newKeySet();
 	
 	public Placeholders(Game plugin) {
 		this.arena = plugin.getArena();
@@ -35,7 +38,7 @@ public class Placeholders extends PlaceholderExpansion {
 	
 	@Override
 	public String onPlaceholderRequest(Player p, @NotNull String identifier) {
-		if (identifier.contains("top")) {
+		if (identifier.startsWith("top_")) {
 			return handleLeaderboardPlaceholder(identifier);
 		}
 
@@ -53,13 +56,10 @@ public class Placeholders extends PlaceholderExpansion {
 		String topType = queries[1]; // ex: kills
 		String topIdentifier = queries[2]; // ex: amount, player
 		String possibleTopValue = queries[3]; // 1, 15
-		int topValue = 1; // if number parsing fails, use top player
-
-		if (StringUtils.isNumeric(possibleTopValue)) {
-			topValue = Integer.parseInt(possibleTopValue);
-		} else {
-			Toolkit.printToConsole("%prefix% &cFailed to properly parse placeholder, " +
-					"expected number but received: " + possibleTopValue);
+		int topValue = Toolkit.parseNonNegativeInt(possibleTopValue);
+		if (topValue < 1) {
+			reportOnce(identifier, "expected a rank number but received: " + possibleTopValue);
+			topValue = 1; // use the top player
 		}
 
 		TopEntry entry = arena.getLeaderboards().getTopN(topType, topValue);
@@ -73,12 +73,17 @@ public class Placeholders extends PlaceholderExpansion {
 			String toBuiltInPlaceholder = placeholderAPItoBuiltIn.get(placeholderAPIIdentifier);
 			return arena.getUtilities().replaceBuiltInPlaceholdersIfPresent(toBuiltInPlaceholder, username);
 		} else {
-			Toolkit.printToConsole(String.format("&7[&b&lKIT-PVP&7] &cUnknown placeholder identifier [%s]. " +
-							"Please see plugin page.", placeholderAPIIdentifier));
+			reportOnce(placeholderAPIIdentifier, "unknown placeholder identifier");
 			return "invalid-placeholder";
 		}
 	}
 	
+	private void reportOnce(String identifier, String problem) {
+		if (reportedIdentifiers.add(identifier)) {
+			Toolkit.printToConsole("&7[&b&lKIT-PVP&7] &c%kitpvp_" + identifier + "%: " + problem + ".");
+		}
+	}
+
 	@Override
 	public boolean canRegister() { return true; }
 

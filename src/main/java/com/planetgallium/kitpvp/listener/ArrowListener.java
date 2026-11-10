@@ -1,15 +1,14 @@
 package com.planetgallium.kitpvp.listener;
 
-import com.cryptomorin.xseries.XMaterial;
 import com.planetgallium.kitpvp.util.Resource;
 import org.bukkit.Material;
 import org.bukkit.entity.Arrow;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.scheduler.BukkitRunnable;
 
 import com.planetgallium.kitpvp.Game;
 import com.planetgallium.kitpvp.util.Toolkit;
@@ -24,69 +23,51 @@ public class ArrowListener implements Listener {
 		this.config = plugin.getResources().getConfig();
 	}
 
-	@EventHandler
+	// MONITOR + ignoreCancelled: a hit that another check cancelled (spawn protection, no-kit protection,
+	// WorldGuard) no longer gives an arrow back or a health message
+	@EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
 	public void onArrowHit(EntityDamageByEntityEvent e) {
-		if (Toolkit.inArena(e.getEntity()) &&
-				e.getEntity() instanceof Player && e.getDamager() instanceof Arrow) {
-			Player damagedPlayer = (Player) e.getEntity();
-			Arrow arrow = (Arrow) e.getDamager();
+		if (!(e.getEntity() instanceof Player) || !(e.getDamager() instanceof Arrow)) return;
+		if (!(((Arrow) e.getDamager()).getShooter() instanceof Player)) return;
+		if (!Toolkit.inArena(e.getEntity())) return;
 
-			if (arrow.getShooter() != null && arrow.getShooter() instanceof Player) {
-				Player shooter = (Player) arrow.getShooter();
+		Player damagedPlayer = (Player) e.getEntity();
+		Player shooter = (Player) ((Arrow) e.getDamager()).getShooter();
 
-				// make sure damaged player isn't shooter (self-hit)
-				if (!damagedPlayer.getName().equals(shooter.getName())) {
-					doArrowHitMessageIfEnabled(shooter, damagedPlayer);
-					doArrowReturnIfEnabled(shooter, damagedPlayer);
-				}
-			}
-		}
+		if (damagedPlayer.equals(shooter)) return; // self-hit
+
+		doArrowHitMessageIfEnabled(shooter, damagedPlayer);
+		doArrowReturnIfEnabled(shooter);
 	}
 
 	private void doArrowHitMessageIfEnabled(Player shooter, Player damagedPlayer) {
-		if (config.getBoolean("Combat.ArrowHit.Enabled")) {
-			new BukkitRunnable() {
-				@Override
-				public void run() {
-					double health = Math.round(damagedPlayer.getHealth() * 10.0) / 10.0;
+		if (!config.getBoolean("Combat.ArrowHit.Enabled") || !shooter.hasPermission("kp.arrowmessage")) return;
 
-					if (shooter.hasPermission("kp.arrowmessage")) {
-						if (health != 20.0) {
-							shooter.sendMessage(config.fetchString("Combat.ArrowHit.Message").replace("%player%", damagedPlayer.getName()).replace("%health%", String.valueOf(health)));
-						}
-					}
-				}
-			}.runTaskLater(plugin, 2L);
-		}
+		// read 2 ticks later, once the damage has been applied
+		plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
+			if (!shooter.isOnline() || !damagedPlayer.isOnline() || damagedPlayer.isDead()) return;
+
+			double health = Math.round(damagedPlayer.getHealth() * 10.0) / 10.0;
+			// compared with the kit's max health: a 40 HP kit at 20 HP was skipped, at 40 HP shown
+			if (health < Toolkit.getMaxHealth(damagedPlayer)) {
+				shooter.sendMessage(config.fetchString("Combat.ArrowHit.Message")
+						.replace("%player%", damagedPlayer.getName())
+						.replace("%health%", String.valueOf(health)));
+			}
+		}, 2L);
 	}
 
-	private void doArrowReturnIfEnabled(Player shooter, Player damagedPlayer) {
-		if (config.getBoolean("Combat.ArrowReturn.Enabled")) {
+	private void doArrowReturnIfEnabled(Player shooter) {
+		if (!config.getBoolean("Combat.ArrowReturn.Enabled")) return;
+		// the permission used to be checked only when an arrow stack had room, so everyone got arrows back
+		if (!shooter.hasPermission("kp.arrowreturn")) return;
 
-			// Do not do arrow return if damagedPlayer does not have a kit (if NoKitProtection is enabled)
-			if (config.getBoolean("Arena.NoKitProtection")) {
-				if (!plugin.getArena().getKits().playerHasKit(damagedPlayer.getName())) {
-					return;
-				}
-			}
+		int count = config.getInt("Combat.ArrowReturn.Count");
+		if (count <= 0) return;
 
-			ItemStack arrowToAdd = new ItemStack(Material.ARROW, config.getInt("Combat.ArrowReturn.Count"));
-
-			for (ItemStack items : shooter.getInventory().getContents()) {
-				if (items != null && items.getType() == XMaterial.ARROW.parseMaterial() && items.getAmount() < 64) {
-
-					if (shooter.hasPermission("kp.arrowreturn")) {
-						shooter.getInventory().addItem(arrowToAdd);
-						return;
-					}
-				}
-			}
-
-			if (shooter.getInventory().firstEmpty() == -1) {
-				shooter.sendMessage(config.fetchString("Combat.ArrowReturn.NoSpace"));
-			} else {
-				shooter.getInventory().addItem(arrowToAdd);
-			}
+		// addItem tops up existing arrow stacks first, then empty slots; whatever is left had no room
+		if (!shooter.getInventory().addItem(new ItemStack(Material.ARROW, count)).isEmpty()) {
+			shooter.sendMessage(config.fetchString("Combat.ArrowReturn.NoSpace"));
 		}
 	}
 

@@ -40,9 +40,9 @@ public class Stats {
     }
 
     public double getKDRatio(String username) {
-        if (getStat("deaths", username) != 0) {
-            double divided = (double) getStat("kills", username) / getStat("deaths", username);
-            return Toolkit.round(divided, 2);
+        int deaths = getStat("deaths", username);
+        if (deaths > 0) {
+            return Toolkit.round((double) getStat("kills", username) / deaths, 2);
         }
         return 0.00;
     }
@@ -59,7 +59,7 @@ public class Stats {
             int currentExperience = getStat("experience", p.getName());
             int newExperience = currentExperience + applyPossibleXPMultiplier(p, experienceToAdd);
             setStat("experience", p.getName(), newExperience);
-            if (getStat("experience", p.getName()) >= getRegularOrRelativeNeededExperience(p.getName())) {
+            if (newExperience >= getRegularOrRelativeNeededExperience(p.getName())) {
                 levelUp(p);
                 Bukkit.getPluginManager().callEvent(new PlayerLevelUpEvent(p, getStat("level", p.getName())));
             }
@@ -74,9 +74,10 @@ public class Stats {
     public void levelUp(Player p) {
         String username = p.getName();
 
-        if (getStat("level", username) < levels.getInt("Levels.Options.Maximum-Level")) {
+        int currentLevel = getStat("level", username);
+        if (currentLevel < levels.getInt("Levels.Options.Maximum-Level")) {
 
-            int newLevel = getStat("level", username) + 1;
+            int newLevel = currentLevel + 1;
             setStat("level", username, newLevel);
             setStat("experience", username, 0);
 
@@ -145,10 +146,12 @@ public class Stats {
             return new PlayerData(-1, -1, -1, -1);
         }
 
-        if (!CacheManager.getStatsCache().containsKey(username)) {
-            CacheManager.getStatsCache().put(username, database.getStatsData(username));
+        PlayerData cached = CacheManager.getStatsCache().get(username);
+        if (cached == null) {
+            cached = database.getStatsData(username);
+            CacheManager.getStatsCache().put(username, cached);
         }
-        return CacheManager.getStatsCache().get(username);
+        return cached;
     }
 
     public int getRegularOrRelativeNeededExperience(String username) {

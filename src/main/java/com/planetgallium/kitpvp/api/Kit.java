@@ -100,7 +100,8 @@ public class Kit {
 
     public void apply(Player player) {
         List<ItemStack> overflowItems = new ArrayList<>();
-        boolean addOverflowItems = (Boolean) options.get("AddOverflowItemsOnKit");
+        // a kit built through the API may not set this option: missing means off, not a crash
+        boolean addOverflowItems = Boolean.TRUE.equals(options.get("AddOverflowItemsOnKit"));
 
         if (kitHelmet != null) {
             if (isEmpty(player.getInventory().getHelmet())) {
@@ -150,7 +151,7 @@ public class Kit {
             }
         }
 
-        if (offhand != null && Toolkit.versionToNumber() >= 19) {
+        if (offhand != null) {
             player.getInventory().setItemInOffHand(offhand);
         }
 
@@ -166,7 +167,7 @@ public class Kit {
             }
         }
 
-        effects.stream().forEach(effect -> player.addPotionEffect(effect));
+        player.addPotionEffects(effects);
     }
 
     // Modern Paper returns an AIR stack instead of null for empty slots
@@ -175,6 +176,10 @@ public class Kit {
     }
 
     private void giveOverflowItems(Player p, List<ItemStack> overflowItems) {
+        if (overflowItems.isEmpty()) {
+            return; // with a full inventory, nothing to give used to still send "0 items lost"
+        }
+
         for (int i = 0; i < 36; i++) {
             if (isEmpty(p.getInventory().getItem(i))) { // if empty slot found
                 if (overflowItems.size() >= 1) {
@@ -186,17 +191,19 @@ public class Kit {
             }
         }
 
-        boolean dropRemainingOverflowItems = (Boolean) options.get("DropRemainingOverflowItemsOnKit");
+        boolean dropRemainingOverflowItems = Boolean.TRUE.equals(options.get("DropRemainingOverflowItemsOnKit"));
 
+        Object message;
         if (dropRemainingOverflowItems) {
             for (ItemStack remainingOverflowItem : overflowItems) {
                 p.getWorld().dropItem(p.getLocation(), remainingOverflowItem);
             }
-            String overflowItemsDropMessage = (String) options.get("Message-OverflowItemsDropped");
-            p.sendMessage(overflowItemsDropMessage.replace("%number%", String.valueOf(overflowItems.size())));
+            message = options.get("Message-OverflowItemsDropped");
         } else {
-            String overflowItemsLostMessage = (String) options.get("Message-OverflowItemsLost");
-            p.sendMessage(overflowItemsLostMessage.replace("%number%", String.valueOf(overflowItems.size())));
+            message = options.get("Message-OverflowItemsLost");
+        }
+        if (message instanceof String) {
+            p.sendMessage(((String) message).replace("%number%", String.valueOf(overflowItems.size())));
         }
     }
 
@@ -205,7 +212,6 @@ public class Kit {
         resource.set("Kit.Cooldown", cooldown != null ? cooldown.formatted(true) : 0);
         resource.set("Kit.Level", level);
         resource.set("Kit.Health", maxHealth);
-        resource.save();
 
         AttributeWriter.itemStackToResource(resource, "Inventory.Armor.Helmet", kitHelmet);
         AttributeWriter.itemStackToResource(resource, "Inventory.Armor.Chestplate", kitChestplate);

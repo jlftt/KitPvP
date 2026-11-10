@@ -14,6 +14,7 @@ import org.bukkit.potion.PotionEffectType;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 
 public class Abilities {
 
@@ -95,7 +96,8 @@ public class Abilities {
         return ability;
     }
 
-    public class AbilityActivatorMetaData {
+    // static: it does not need the Abilities instance
+    public static class AbilityActivatorMetaData {
 
         private final String materialName;
         private String displayName;
@@ -114,7 +116,8 @@ public class Abilities {
         public boolean equals(Object otherObject) {
             if (otherObject instanceof AbilityActivatorMetaData) {
                 AbilityActivatorMetaData otherAbilityData = (AbilityActivatorMetaData) otherObject;
-                return this.displayName.equals(otherAbilityData.getDisplayName()) &&
+                // an activator without a name (Activator.Name missing) used to throw a NullPointerException
+                return Objects.equals(this.displayName, otherAbilityData.getDisplayName()) &&
                         this.materialName.equals(otherAbilityData.getMaterialName());
             }
             return false;
@@ -122,7 +125,7 @@ public class Abilities {
 
         @Override
         public int hashCode() {
-            return this.displayName.hashCode() + this.materialName.hashCode();
+            return Objects.hash(displayName, materialName);
         }
 
         public String getDisplayName() { return displayName; }

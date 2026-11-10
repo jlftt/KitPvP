@@ -7,6 +7,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.logging.Logger;
 
 public class Table {
 
@@ -15,12 +16,14 @@ public class Table {
     public final static String DELETE_TABLE_QUERY = "DROP TABLE IF EXISTS {table_name};";
     private final static String INSERT_RECORD_QUERY = "INSERT INTO {table_name} ({columns}) VALUES ({values});";
     private final static String UPDATE_RECORD_QUERY = "UPDATE {table_name} SET {columns_with_values} " +
-            "WHERE `{primary_key}`='{primary_key_value}';";
+            "WHERE `{primary_key}`=?;";
     private final static String SEARCH_RECORD_QUERY = "SELECT * FROM {table_name} WHERE {column_to_search_name}=?;";
     private final static String GET_RECORD_QUERY = "SELECT * FROM {table_name} WHERE `{primary_field_name}`=?;";
     private final static String DELETE_RECORD_QUERY = "DELETE FROM {table_name} WHERE `{primary_field_name}`=?;";
     private final static String TOP_N_RECORD_QUERY = "SELECT {return_column_name}, {sort_column_name} FROM " +
             "{table_name} ORDER BY {sort_column_name} DESC LIMIT {n};";
+
+    private static final Logger LOGGER = Logger.getLogger("KitPvP");
 
     private final DataSource dataSource;
 
@@ -47,8 +50,7 @@ public class Table {
 
     public void insertRecord(Field ... fields) {
         if (!fields[0].getName().equals(primaryKey.getName())) {
-            System.out.printf("[Database] Failed to insert record; primary key %s does not match table key\n",
-                    fields[0].getName());
+            LOGGER.warning("Failed to insert record; primary key " + fields[0].getName() + " does not match table key");
             return;
         }
 
@@ -61,11 +63,14 @@ public class Table {
 
     public void insertRecord(Record recordToInsert) {
         if (getRecord(recordToInsert.getFields().get(0)) != null) {
-            System.out.printf("[Database] Failed to perform action with record %s; already present in database\n",
-                    recordToInsert.getFields().get(0).getName());
+            LOGGER.warning("Failed to insert record " + recordToInsert.getFields().get(0).getValue() +
+                    " into " + name + "; already present");
             return;
         }
+        insertWithoutCheck(recordToInsert);
+    }
 
+    private void insertWithoutCheck(Record recordToInsert) {
         String columns = String.join(", ", recordFieldsToList(recordToInsert, true));
         String values = String.join(", ", recordFieldsToList(recordToInsert, false));
         String insertRecordQuery = Table.INSERT_RECORD_QUERY.replace("{table_name}", this.getName())
@@ -94,11 +99,15 @@ public class Table {
     public void updateRecord(Field keyOfRecordToUpdate, Field ... fields) {
         if (!containsPrimaryKey(fields)) {
             String updateQuery = Table.UPDATE_RECORD_QUERY.replace("{table_name}", this.getName())
-                    .replace("{columns_with_values}", formatFieldNamesWithValues(fields))
-                    .replace("{primary_key}", primaryKey.getName())
-                    .replace("{primary_key_value}", keyOfRecordToUpdate.getValue().toString());
+                    .replace("{columns_with_values}", formatFieldNamesForUpdate(fields))
+                    .replace("{primary_key}", primaryKey.getName());
             try (Connection connection = dataSource.getConnection() ;
                  PreparedStatement statement = connection.prepareStatement(updateQuery)) {
+                // values go in as parameters: a username is never pasted into the SQL text
+                for (int i = 0; i < fields.length; i++) {
+                    setStatementParameterToType(statement, i + 1, fields[i]);
+                }
+                setStatementParameterToType(statement, fields.length + 1, keyOfRecordToUpdate);
                 statement.executeUpdate();
             } catch (SQLException exception) {
                 exception.printStackTrace();
@@ -123,7 +132,7 @@ public class Table {
 
     public void updateOrInsertRecord(Record record) {
         if (getRecord(record.getFields().get(0)) == null) {
-            insertRecord(record);
+            insertWithoutCheck(record); // just checked, no second lookup
         } else {
             updateRecord(record);
         }
@@ -141,7 +150,7 @@ public class Table {
     public List<Record> searchRecords(Field fieldToSearchFor) {
         List<Record> matchingRecords = new ArrayList<>();
         if (fieldToSearchFor.getName().equals(this.getPrimaryKey().getName())) {
-            System.out.println("[DATABASE] Primary key search detected. Should use getRecord instead.");
+            LOGGER.warning("Primary key search on " + name + "; use getRecord instead");
             return matchingRecords; // should use getRecord instead
         }
 
@@ -242,34 +251,24 @@ public class Table {
      * to be used in SQL statements
      */
     private String formatFieldNamesWithDataTypes(Record record) {
-        String result = "";
+        StringBuilder result = new StringBuilder();
         for (Field field : record.getFields()) {
-            result += String.format(", %s %s", field.getName(), field.getSQLDataType());
+            result.append(", ").append(field.getName()).append(' ').append(field.getSQLDataType());
             if (field.getDataType() == DataType.FIXED_STRING ||
                     field.getDataType() == DataType.STRING) {
-                result += String.format("(%d)", field.getLimit()); // for "VARCHAR(25)" or "CHAR(25)" for example
+                result.append('(').append(field.getLimit()).append(')'); // for "VARCHAR(25)" or "CHAR(25)" for example
             }
         }
-        return result.length() > 0 ? result.substring(2) : result;
+        return result.length() > 0 ? result.substring(2) : result.toString();
     }
 
     /**
-     * Converts fields with values (ex: kills=16, experience=85, etc) to one string
-     * "kills=16 experience=85"
-     * to be used in SQL statements
+     * Converts columns [fields] (ex: kills, experience) to "kills=?, experience=?" for an UPDATE statement
      */
-    private String formatFieldNamesWithValues(Field ... fields) {
+    private String formatFieldNamesForUpdate(Field ... fields) {
         StringBuilder result = new StringBuilder();
         for (Field field : fields) {
-            String valueStr;
-
-            if (field.getDataType() == DataType.STRING) {
-                valueStr = "'" + field.getValue().toString().replace("'", "''") + "'";
-            } else {
-                valueStr = field.getValue().toString();
-            }
-
-            result.append(", ").append(field.getName()).append("=").append(valueStr);
+            result.append(", ").append(field.getName()).append("=?");
         }
         return result.length() > 0 ? result.substring(2) : result.toString();
     }
@@ -279,7 +278,8 @@ public class Table {
         String fieldName = field.getName();
         Object data = null;
 
-        if (dataType == DataType.STRING) {
+        // FIXED_STRING is the uuid column: left out, every uuid read back as null
+        if (dataType == DataType.STRING || dataType == DataType.FIXED_STRING) {
             data = resultSet.getString(fieldName);
         } else if (dataType == DataType.INTEGER) {
             data = resultSet.getInt(fieldName);
@@ -305,8 +305,7 @@ public class Table {
 
     private boolean verifyPrimaryKey(Table table, Field keyToValidate) {
         if (!keyToValidate.getName().equals(table.getPrimaryKey().getName())) {
-            System.out.printf("[Database] Failed to perform action with key %s; did not match table primary key\n",
-                    keyToValidate.getName());
+            LOGGER.warning("Key " + keyToValidate.getName() + " does not match the primary key of " + table.getName());
             return false;
         }
         return true;

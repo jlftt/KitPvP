@@ -27,20 +27,7 @@ public class JoinListener implements Listener {
 	public void onJoin(PlayerJoinEvent e) {
 		Player p = e.getPlayer();
 
-		// Update checker
-		if (plugin.needsUpdate()) {
-			if (p.isOp()) {
-				p.sendMessage(Toolkit.translate("&7[&b&lKIT-PVP&7] &aAn update was found: v" +
-						plugin.getUpdateVersion() + " https://www.spigotmc.org/resources/27107/"));
-			}
-		}
-
 		arena.getStats().createPlayer(p);
-
-		if (p.getName().equals("cervinakuy")) {
-			e.setJoinMessage(Toolkit.translate("&7[&b&lKIT-PVP&7] &7The Developer of &bKitPvP" +
-					" &7has joined the server."));
-		}
 
 		enterArena(p);
 	}

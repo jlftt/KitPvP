@@ -4,7 +4,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 import com.planetgallium.kitpvp.util.Toolkit;
-import org.apache.commons.lang.StringUtils;
 import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
 import org.bukkit.scoreboard.DisplaySlot;
@@ -48,13 +47,17 @@ public class Infoboard {
             String second = input.substring(16, input.length());
             if (first.endsWith(String.valueOf('§'))) {
                 first = first.substring(0, first.length() - 1);
-                second = String.valueOf(String.valueOf('§')) + second;
+                second = '§' + second;
             }
             final String lastColors = ChatColor.getLastColors(first);
-            second = String.valueOf(String.valueOf(lastColors)) + second;
-            text = new ScoreboardText(first, StringUtils.left(second, 16));
+            second = lastColors + second;
+            text = new ScoreboardText(first, left(second, 16));
         }
         this.list.add(text);
+    }
+
+    private static String left(String text, int length) {
+        return text.length() <= length ? text : text.substring(0, length);
     }
 
     public void clear() {
@@ -64,14 +67,14 @@ public class Infoboard {
     public void remove(final int index) {
         final String name = this.getNameForIndex(index);
         this.scoreBoard.resetScores(name);
-        final Team team = this.getOrCreateTeam(String.valueOf(String.valueOf(ChatColor.stripColor(StringUtils.left(this.tag, 14)))) + index, index);
+        final Team team = this.getOrCreateTeam(ChatColor.stripColor(left(this.tag, 14)) + index, index);
         team.unregister();
     }
 
     public void update(final Player player) {
         player.setScoreboard(this.scoreBoard);
         for (int sentCount = 0; sentCount < this.list.size(); ++sentCount) {
-            final Team i = this.getOrCreateTeam(String.valueOf(String.valueOf(ChatColor.stripColor(StringUtils.left(this.tag, 14)))) + sentCount, sentCount);
+            final Team i = this.getOrCreateTeam(ChatColor.stripColor(left(this.tag, 14)) + sentCount, sentCount);
             final ScoreboardText str = this.list.get(this.list.size() - sentCount - 1);
             i.setPrefix(str.getLeft());
             i.setSuffix(str.getRight());
@@ -104,7 +107,7 @@ public class Infoboard {
     }
 
     public String getNameForIndex(final int index) {
-        return String.valueOf(String.valueOf(ChatColor.values()[index].toString())) + ChatColor.RESET;
+        return ChatColor.values()[index].toString() + ChatColor.RESET;
     }
 
     private static class ScoreboardText

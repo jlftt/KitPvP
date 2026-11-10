@@ -1,6 +1,5 @@
 package com.planetgallium.kitpvp.listener;
 
-import com.cryptomorin.xseries.XMaterial;
 import com.planetgallium.kitpvp.Game;
 import com.planetgallium.kitpvp.api.Kit;
 import com.planetgallium.kitpvp.game.Arena;
@@ -29,14 +28,18 @@ import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.inventory.meta.PotionMeta;
-import org.bukkit.potion.Potion;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 import org.bukkit.potion.PotionType;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.util.Vector;
 
-import java.util.Random;
+import java.util.EnumMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.ThreadLocalRandom;
 
 public class ItemListener implements Listener {
 
@@ -128,7 +131,7 @@ public class ItemListener implements Listener {
 				e.setCancelled(true);
 			}
 
-		} else if (interactedItem.hasItemMeta()) {
+		} else if (interactedItem.hasItemMeta() && config.getConfigurationSection("Items") != null) {
 			ConfigurationSection items = config.getConfigurationSection("Items");
 
 			for (String identifier : items.getKeys(false)) {
@@ -323,15 +326,18 @@ public class ItemListener implements Listener {
 		}
 	}
 
-	private void ninjaAbility(PlayerInteractEvent e, Player p, ItemStack abilityItem) {
-		ItemStack previousHelmet = p.getInventory().getHelmet();
-		ItemStack previousChestplate = p.getInventory().getChestplate();
-		ItemStack previousLeggings = p.getInventory().getLeggings();
-		ItemStack previousBoots = p.getInventory().getBoots();
-		// A player who dies and takes a kit again within the five seconds must not get this armor back
-		int deathsWhenUsed = p.getStatistic(Statistic.DEATHS);
+	/** Ninjas whose vanish is running: their armor is off and their held items are hidden from the others. */
+	private final Set<UUID> vanishedNinjas = new HashSet<>();
 
-		p.getInventory().setArmorContents(null);
+	/** Players further than this cannot see the ninja anyway (players are tracked up to 48 blocks). */
+	private static final double NINJA_HIDE_RANGE_SQUARED = 64 * 64;
+
+	private void ninjaAbility(PlayerInteractEvent e, Player p, ItemStack abilityItem) {
+		// A second star during the vanish only renews the effects below: the armor is already off, and taking it
+		// again would store none, then put none back
+		if (vanishedNinjas.add(p.getUniqueId())) {
+			startNinjaVanish(p);
+		}
 
 		for (Entity entity : p.getNearbyEntities(3, 3, 3)) {
 			if (entity instanceof Player) {
@@ -346,19 +352,59 @@ public class ItemListener implements Listener {
 		p.addPotionEffect(new PotionEffect(PotionEffectType.NIGHT_VISION, 100, 0));
 
 		useBuiltInAbilityItem(e, p, p, abilityItem, "Ninja");
+	}
+
+	/**
+	 * Takes the ninja's armor off until the invisibility ends, and meanwhile shows the others empty hands. The
+	 * server sends the real items again whenever they change and to anyone coming in range, so they are hidden
+	 * again every tick.
+	 */
+	private void startNinjaVanish(Player p) {
+		ItemStack previousHelmet = p.getInventory().getHelmet();
+		ItemStack previousChestplate = p.getInventory().getChestplate();
+		ItemStack previousLeggings = p.getInventory().getLeggings();
+		ItemStack previousBoots = p.getInventory().getBoots();
+		// A player who dies and takes a kit again during the vanish must not get this armor back
+		int deathsWhenUsed = p.getStatistic(Statistic.DEATHS);
+
+		p.getInventory().setArmorContents(null);
 
 		new BukkitRunnable() {
 			@Override
 			public void run() {
-				if (p.isOnline() && p.getStatistic(Statistic.DEATHS) == deathsWhenUsed &&
-						arena.getKits().playerHasKit(p.getName())) {
-					p.getInventory().setHelmet(previousHelmet);
-					p.getInventory().setChestplate(previousChestplate);
-					p.getInventory().setLeggings(previousLeggings);
-					p.getInventory().setBoots(previousBoots);
+				boolean sameLife = p.isOnline() && p.getStatistic(Statistic.DEATHS) == deathsWhenUsed;
+				if (sameLife && p.hasPotionEffect(PotionEffectType.INVISIBILITY)) {
+					showHandsToOthers(p, false);
+					return;
+				}
+
+				cancel();
+				vanishedNinjas.remove(p.getUniqueId());
+				if (sameLife) {
+					showHandsToOthers(p, true);
+					if (arena.getKits().playerHasKit(p.getName())) {
+						p.getInventory().setHelmet(previousHelmet);
+						p.getInventory().setChestplate(previousChestplate);
+						p.getInventory().setLeggings(previousLeggings);
+						p.getInventory().setBoots(previousBoots);
+					}
 				}
 			}
-		}.runTaskLater(plugin, 100L);
+		}.runTaskTimer(plugin, 1L, 1L);
+	}
+
+	private void showHandsToOthers(Player p, boolean show) {
+		Map<EquipmentSlot, ItemStack> hands = new EnumMap<>(EquipmentSlot.class);
+		ItemStack air = new ItemStack(Material.AIR);
+		hands.put(EquipmentSlot.HAND, show ? p.getInventory().getItemInMainHand() : air);
+		hands.put(EquipmentSlot.OFF_HAND, show ? p.getInventory().getItemInOffHand() : air);
+
+		Location location = p.getLocation();
+		for (Player viewer : p.getWorld().getPlayers()) {
+			if (viewer != p && viewer.getLocation().distanceSquared(location) <= NINJA_HIDE_RANGE_SQUARED) {
+				viewer.sendEquipmentChange(p, hands);
+			}
+		}
 	}
 
 	private void bomberAbility(PlayerInteractEvent e, Player p, ItemStack abilityItem) {
@@ -393,7 +439,7 @@ public class ItemListener implements Listener {
 
 		if (Toolkit.hasMatchingDisplayName(abilityItem, abilities.fetchString("Abilities.Archer.Item.Fire")) ||
 				Toolkit.hasMatchingDisplayName(abilityItem, abilities.fetchString("Abilities.Archer.Item.NoFire"))) {
-			abilityItem.setType(XMaterial.matchXMaterial(fireItem).get().parseMaterial());
+			abilityItem.setType(Toolkit.safeMaterial(fireItem));
 			abilityItemMeta.setDisplayName(abilities.fetchString("Abilities.Archer.Item." + firePath));
 			abilityItem.setItemMeta(abilityItemMeta);
 
@@ -427,8 +473,6 @@ public class ItemListener implements Listener {
 
 						Toolkit.playSoundToPlayer(p, abilities.fetchString("Abilities.Witch.Sound.Sound"),
 								abilities.getInt("Abilities.Witch.Sound.Pitch"));
-
-						CacheManager.getPotionSwitcherUsers().add(p.getName());
 					}
 				}
 			}.runTaskLater(plugin, 5 * 20L);
@@ -550,68 +594,48 @@ public class ItemListener implements Listener {
 	}
 
 	private int getItemByMeta(Material type, String displayName, Player p) {
-		int inventorySize = Toolkit.versionToNumber() == 18 ? 39 : 45;
-		for (int i = 0; i <= inventorySize; i++) {
-			ItemStack item = p.getInventory().getItem(i);
-			if (item != null) {
-				if (item.getType() == type && Toolkit.hasMatchingDisplayName(item, displayName)) {
-					return i;
-				}
+		ItemStack[] contents = p.getInventory().getContents();
+		for (int i = 0; i < contents.length; i++) {
+			ItemStack item = contents[i];
+			if (item != null && item.getType() == type && Toolkit.hasMatchingDisplayName(item, displayName)) {
+				return i;
 			}
 		}
 		return -1;
 	}
 
 	private ItemStack createWitchPotion() {
-		PotionType randomPotionType = randomPotionType();
+		ItemStack potionStack = new ItemStack(Material.SPLASH_POTION);
+		Toolkit.appendToLore(potionStack, "X");
+		PotionMeta potionMeta = (PotionMeta) potionStack.getItemMeta();
 
-		if (Toolkit.versionToNumber() >= 121) { // 1.21+
-			ItemStack potionStack = new ItemStack(Material.SPLASH_POTION);
-			Toolkit.appendToLore(potionStack, "X");
-			PotionMeta potionMeta = (PotionMeta) potionStack.getItemMeta();
-
-			if (potionMeta != null) {
-				potionMeta.setBasePotionType(randomPotionType);
-				potionStack.setItemMeta(potionMeta);
-			}
-
-			return potionStack;
-		} else { // pre 1.21
-			Potion potion = new Potion(randomPotionType, 1);
-			potion.setSplash(true);
-
-			ItemStack potionStack = potion.toItemStack(1);
-			Toolkit.appendToLore(potionStack, "X");
-
-			return potionStack;
+		if (potionMeta != null) {
+			potionMeta.setBasePotionType(randomPotionType());
+			potionStack.setItemMeta(potionMeta);
 		}
+
+		return potionStack;
 	}
-	
+
 	private PotionType randomPotionType() {
-		PotionType potion = null;
-		
-		Random ran = new Random();
-		int chance = ran.nextInt(100);
-		
+		int chance = ThreadLocalRandom.current().nextInt(100);
+
 		if (chance < 10) {
-			potion = PotionType.INSTANT_DAMAGE;
+			return PotionType.INSTANT_DAMAGE;
 		} else if (chance < 20) {
-			potion = PotionType.INSTANT_HEAL;
+			return PotionType.INSTANT_HEAL;
 		} else if (chance < 40) {
-			potion = PotionType.POISON;
+			return PotionType.POISON;
 		} else if (chance < 60) {
-			potion = PotionType.REGEN;
+			return PotionType.REGEN;
 		} else if (chance < 80) {
-			potion = PotionType.SPEED;
-		} else if (chance < 100) {
-			potion = PotionType.SLOWNESS;
+			return PotionType.SPEED;
 		}
-		return potion;
+		return PotionType.SLOWNESS;
 	}
 
 	public boolean isSplashPotion(ItemStack item) {
-		int serverVersion = Toolkit.versionToNumber();
-		return Toolkit.hasMatchingMaterial(item, serverVersion == 18 ? "POTION" : "SPLASH_POTION");
+		return item.getType() == Material.SPLASH_POTION;
 	}
 
 }

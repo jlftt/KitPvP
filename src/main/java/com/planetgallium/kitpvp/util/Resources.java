@@ -89,13 +89,13 @@ public class Resources {
 
 		// load new kits & abilities that have been added through file system (when doing /kp reload)
 		for (String fileName : getPluginDirectoryFiles("kits", true)) {
-			if (!kitToResource.containsKey(fileName) && !fileName.startsWith(".")) {
+			if (!kitToResource.containsKey(fileName)) {
 				kitToResource.put(fileName, new Resource(plugin, "kits/" + fileName));
 			}
 		}
 
 		for (String fileName : getPluginDirectoryFiles("abilities", true)) {
-			if (!abilityToResource.containsKey(fileName) && !fileName.startsWith(".")) {
+			if (!abilityToResource.containsKey(fileName)) {
 				abilityToResource.put(fileName, new Resource(plugin, "abilities/" + fileName));
 			}
 		}
@@ -115,35 +115,41 @@ public class Resources {
 	}
 	
 	public void removeResource(String fileName) {
-		kitToResource.get(fileName).getFile().delete();
-		kitToResource.remove(fileName);
+		Resource removed = kitToResource.remove(fileName);
+		if (removed != null) {
+			removed.getFile().delete();
+		}
 	}
 
 	public void addAbilityResource(Ability ability) {
-		String abilityName = ability.getName();
-		Resource abilityResource = new Resource(plugin, "abilities/" + abilityName + ".yml");
+		// Keyed by file name like load() does, or the next /kp reload would add the ability a second time
+		String fileName = ability.getName() + ".yml";
+		Resource abilityResource = new Resource(plugin, "abilities/" + fileName);
 		ability.toResource(abilityResource);
 
-		abilityToResource.put(abilityName, abilityResource);
-		abilityToResource.get(abilityName).load();
+		abilityToResource.put(fileName, abilityResource);
+		abilityResource.load();
 	}
 
 	public Resource getKit(String kitName) {
-		if (kitToResource.containsKey(kitName + ".yml")) {
-			return kitToResource.get(kitName + ".yml");
-		}
-		return null;
+		return kitToResource.get(kitName + ".yml");
 	}
 
+	/**
+	 * Names of the .yml files in a plugin folder (hidden files skipped), sorted.
+	 */
 	public List<String> getPluginDirectoryFiles(String directoryName, boolean withFileEndings) {
-		File folder = new File(plugin.getDataFolder().getAbsolutePath() + "/" + directoryName);
+		String[] fileNames = new File(plugin.getDataFolder(), directoryName).list();
 		List<String> fileList = new ArrayList<>();
 
-		if (folder.exists() && folder.list() != null) {
-			for (String fileName : folder.list()) {
-				fileList.add(withFileEndings ? fileName : fileName.split(".yml")[0]);
+		if (fileNames != null) {
+			for (String fileName : fileNames) {
+				if (fileName.endsWith(".yml") && !fileName.startsWith(".")) {
+					fileList.add(withFileEndings ? fileName : fileName.substring(0, fileName.length() - 4));
+				}
 			}
 		}
+		Collections.sort(fileList);
 		return fileList;
 	}
 

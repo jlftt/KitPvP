@@ -25,7 +25,7 @@ public class Arena {
 	private final Map<String, String> hitCache;
 	private final Map<String, Long> hitTimes;
 
-	private final Utilities utilties;
+	private final Utilities utilities;
 	private final Leaderboards leaderboards;
 	private final Stats stats;
 	private final Kits kits;
@@ -44,7 +44,7 @@ public class Arena {
 		this.hitCache = new HashMap<>();
 		this.hitTimes = new HashMap<>();
 
-		this.utilties = new Utilities(plugin, this);
+		this.utilities = new Utilities(plugin, this);
 		this.leaderboards = new Leaderboards(plugin);
 		this.stats = new Stats(plugin, this);
 		this.kits = new Kits(plugin, this);
@@ -152,6 +152,7 @@ public class Arena {
 	
 	public void giveArenaItems(Player p) {
 		ConfigurationSection items = config.getConfigurationSection("Items");
+		if (items == null) return;
 
 		for (String identifier : items.getKeys(false)) {
 			String itemPath = "Items." + identifier;
@@ -171,9 +172,9 @@ public class Arena {
 	}
 
 	public void toSpawn(Player p, String arenaName) {
-		if (config.contains("Arenas." + arenaName)) {
-			p.teleport(Toolkit.getLocationFromResource(config,
-					"Arenas." + arenaName + "." + generateRandomArenaSpawn(arenaName)));
+		String spawn = generateRandomArenaSpawn(arenaName);
+		if (spawn != null) {
+			p.teleport(Toolkit.getLocationFromResource(config, "Arenas." + arenaName + "." + spawn));
 		} else {
 			p.sendMessage(resources.getMessages().fetchString("Messages.Error.Arena")
 					.replace("%arena%", arenaName));
@@ -182,13 +183,13 @@ public class Arena {
 	
 	public void updateScoreboards(Player p, boolean hide) {
 		Scoreboard board = Bukkit.getScoreboardManager().getNewScoreboard();
-		String scoreboardTitle = utilties.addPlaceholdersIfPossible(p,
+		String scoreboardTitle = utilities.addPlaceholdersIfPossible(p,
 				resources.getScoreboard().fetchString("Scoreboard.General.Title"));
 		Infoboard scoreboard = new Infoboard(board, scoreboardTitle);
 		
 		if (!hide) {
 			for (String line : resources.getScoreboard().getStringList("Scoreboard.Lines")) {
-				scoreboard.add(utilties.addPlaceholdersIfPossible(p, line));
+				scoreboard.add(utilities.addPlaceholdersIfPossible(p, line));
 			}
 		} else {
 			scoreboard.hide();
@@ -198,13 +199,15 @@ public class Arena {
 	}
 
 	public String generateRandomArenaSpawn(String arenaName) {
+		// null when the arena is missing or has no spawn left (an empty arena used to throw on nextInt(0))
 		ConfigurationSection section = config.getConfigurationSection("Arenas." + arenaName);
+		if (section == null) return null;
 		List<String> spawnKeys = new ArrayList<>(section.getKeys(false));
+		if (spawnKeys.isEmpty()) return null;
 
 		return spawnKeys.get(random.nextInt(spawnKeys.size()));
 	}
 
-	public Map<String, String> getHitCache() { return hitCache; }
 
 	/** Remembers who last hit a player, for a death the game itself credits to nobody. */
 	public void recordHit(String victimName, String attackerName) {
@@ -233,7 +236,7 @@ public class Arena {
 
 	public Stats getStats() { return stats; }
 
-	public Utilities getUtilities() { return utilties; }
+	public Utilities getUtilities() { return utilities; }
 
 	public Leaderboards getLeaderboards() { return leaderboards; }
 	

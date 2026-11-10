@@ -26,10 +26,7 @@ public class CacheManager {
     public static Set<String> getPotionSwitcherUsers() { return potionSwitcherUsers; }
 
     public static Map<String, Long> getPlayerAbilityCooldowns(String username) {
-        if (!abilityCooldowns.containsKey(username)) {
-            abilityCooldowns.put(username, new HashMap<>());
-        }
-        return abilityCooldowns.get(username);
+        return abilityCooldowns.computeIfAbsent(username, name -> new HashMap<>());
     }
 
     public static void removePlayerAbilityCooldowns(String username) { abilityCooldowns.remove(username); }

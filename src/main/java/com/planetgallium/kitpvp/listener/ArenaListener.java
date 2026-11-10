@@ -102,7 +102,7 @@ public class ArenaListener implements Listener {
 
 			} else if (e.getEntity() instanceof Damageable) {
 
-				if (e.getDamager().getType() == EntityType.PRIMED_TNT) {
+				if (e.getDamager() instanceof TNTPrimed) {
 					if (e.getEntity() instanceof ArmorStand || !(e.getEntity() instanceof LivingEntity)) {
 						// for preventing breakage of paintings, item frames, etc.
 						e.setCancelled(true);

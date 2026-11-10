@@ -2,9 +2,9 @@ package com.planetgallium.kitpvp.util;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import java.util.concurrent.ConcurrentHashMap;
 
 import com.cryptomorin.xseries.XMaterial;
 import com.cryptomorin.xseries.XPotion;
@@ -33,10 +33,19 @@ public class Toolkit {
 
 	private static final Material FALLBACK_MATERIAL = Material.BEDROCK;
 
+	// Material names from the configs, resolved once: XMaterial's lookup runs on every click otherwise
+	private static final Map<String, Material> materialCache = new ConcurrentHashMap<>();
+
+	// The missing-spawn warning used to print on every move and click until a spawn was set
+	private static boolean warnedNoArena;
+
 	public static boolean inArena(World world) {
-		if (Game.getInstance().getResources().getConfig().contains("Arenas")) {
-			return Game.getInstance().getResources().getConfig().contains("Arenas." + world.getName());
-		} else {
+		Resource config = Game.getInstance().getResources().getConfig();
+		if (config.contains("Arenas")) {
+			return config.contains("Arenas." + world.getName());
+		}
+		if (!warnedNoArena) {
+			warnedNoArena = true;
 			Toolkit.printToConsole("&7[&b&lKIT-PVP&7] &cThere was no spawn found, please set it using /kp addspawn.");
 		}
 		return false;
@@ -46,27 +55,33 @@ public class Toolkit {
 		return inArena(entity.getWorld());
 	}
 	
- 	public static String[] getNearestPlayer(Player player, int maxY) {
-		String nearest = "player:100000.0";
+	/**
+	 * The closest other player below maxY that this player can see, as {name, distance}; null if none.
+	 */
+	public static String[] getNearestPlayer(Player player, int maxY) {
+		Location location = player.getLocation();
+		Player nearest = null;
+		double nearestDistanceSquared = Double.MAX_VALUE;
 
-		for (Player all : Bukkit.getWorld(player.getWorld().getName()).getPlayers()) {
-			String[] list = nearest.split(":");
-			double cal = player.getLocation().distance(all.getLocation());
-			
-			if (cal <= Double.parseDouble(list[1]) && all != player) {
-				if (all.getLocation().getBlockY() < maxY) {
-					if (all.getGameMode() != GameMode.SPECTATOR && player.canSee(all)) {
-						nearest = all.getName() + ":" + cal;
-					}
-				}
+		for (Player other : player.getWorld().getPlayers()) {
+			if (other == player || other.getGameMode() == GameMode.SPECTATOR || !player.canSee(other)) {
+				continue;
+			}
+			Location otherLocation = other.getLocation();
+			if (otherLocation.getBlockY() >= maxY) {
+				continue;
+			}
+			double distanceSquared = location.distanceSquared(otherLocation);
+			if (distanceSquared < nearestDistanceSquared) {
+				nearest = other;
+				nearestDistanceSquared = distanceSquared;
 			}
 		}
-		
-		if (nearest.equals("player:100000.0")) {
+
+		if (nearest == null) {
 			return null;
 		}
-		
-		return nearest.split(":");
+		return new String[] {nearest.getName(), String.valueOf(Math.sqrt(nearestDistanceSquared))};
 	}
  	
  	public static double round(double value, int precision) {
@@ -87,9 +102,9 @@ public class Toolkit {
 			String[] commandPhrase = commandString.split(":", 2);
 
 			if (commandPhrase.length == 1) {
-				Toolkit.printToConsole("&7[&b&lKIT-PVP&7] &cIncorrect command format. " +
-						"Please see: &fhttps://bit.ly/kp-command-format");
-				return;
+				Toolkit.printToConsole("&7[&b&lKIT-PVP&7] &cIncorrect command format, skipped: &f" + commandString +
+						" &c(see &fhttps://bit.ly/kp-command-format&c)");
+				continue;
 			}
 
 			commandPhrase[1] = commandPhrase[1].trim();
@@ -98,9 +113,9 @@ public class Toolkit {
 			String command = commandPhrase[1];
 
 			if (!sender.equals("console") && !sender.equals("player")) {
-				Toolkit.printToConsole("&7[&b&lKIT-PVP&7] &cIncorrect command format. " +
-						"Please see: &fhttps://bit.ly/kp-command-format");
-				return;
+				Toolkit.printToConsole("&7[&b&lKIT-PVP&7] &cIncorrect command format, skipped: &f" + commandString +
+						" &c(see &fhttps://bit.ly/kp-command-format&c)");
+				continue;
 			}
 
 			// A command that throws used to end the caller there: an ability went without its cooldown,
@@ -131,27 +146,6 @@ public class Toolkit {
 				.replace(replaceFrom, replaceTo);
 	}
  	
- 	private static Integer cachedVersionNumber;
-
- 	// Returns 18 for 1.8, 112 for 1.12, 121 for 1.21.x, or 500 for unknown/newer versions.
- 	// Parses the exact minor version so that e.g. "1.21.11" is not mistaken for 1.11.
- 	public static int versionToNumber() {
-		if (cachedVersionNumber != null) {
-			return cachedVersionNumber;
-		}
-
-		int number = 500;
-		Matcher matcher = Pattern.compile("^1\\.(\\d+)").matcher(Bukkit.getBukkitVersion());
-		if (matcher.find()) {
-			int minor = Integer.parseInt(matcher.group(1));
-			if (minor >= 8 && minor <= 21) {
-				number = Integer.parseInt("1" + minor);
-			}
-		}
-
-		cachedVersionNumber = number;
- 		return number;
- 	}
  	
  	public static List<String> colorizeList(List<String> list) {
  		List<String> newList = new ArrayList<>();
@@ -332,25 +326,27 @@ public class Toolkit {
 	}
 
 	public static void setMaxHealth(Player p, int amount) {
-		if (Toolkit.versionToNumber() >= 19) {
-			AttributeInstance healthAttribute = p.getAttribute(Attribute.GENERIC_MAX_HEALTH);
-			assert healthAttribute != null;
+		AttributeInstance healthAttribute = p.getAttribute(Attribute.GENERIC_MAX_HEALTH);
+		if (healthAttribute != null) {
 			healthAttribute.setBaseValue(amount);
-			return;
 		}
-		p.setMaxHealth(amount);
 	}
 
 	public static int getMaxHealth(Player p) {
-		if (Toolkit.versionToNumber() >= 19) {
-			AttributeInstance healthAttribute = p.getAttribute(Attribute.GENERIC_MAX_HEALTH);
-			assert healthAttribute != null;
-			return (int) healthAttribute.getValue();
-		}
-		return (int) p.getMaxHealth();
+		AttributeInstance healthAttribute = p.getAttribute(Attribute.GENERIC_MAX_HEALTH);
+		return healthAttribute != null ? (int) healthAttribute.getValue() : 20;
 	}
 
 	public static Material safeMaterial(String materialName) {
+		if (materialName == null) {
+			printToConsole(String.format("&7[&b&lKIT-PVP&7] &cMissing material, defaulting to [%s].", FALLBACK_MATERIAL));
+			return FALLBACK_MATERIAL;
+		}
+		// An unknown name is cached too, so its warning prints once
+		return materialCache.computeIfAbsent(materialName, Toolkit::resolveMaterial);
+	}
+
+	private static Material resolveMaterial(String materialName) {
 		// 1. Use XMaterial first
 		Optional<XMaterial> materialOptional = XMaterial.matchXMaterial(materialName);
 		if (materialOptional.isPresent()) {
@@ -400,63 +396,32 @@ public class Toolkit {
 		return XPotion.BLINDNESS.getPotionEffectType();
 	}
 
-	@SuppressWarnings("deprecation")
 	public static ItemStack getHandItemForInteraction(Event e) {
-		Player p;
-
 		if (e instanceof PlayerInteractEvent) {
 			PlayerInteractEvent interactEvent = (PlayerInteractEvent) e;
-			p = interactEvent.getPlayer();
-			if (versionToNumber() == 18) {
-				return p.getItemInHand();
-			}
-
-			return p.getInventory().getItem(interactEvent.getHand() != null ?
+			return interactEvent.getPlayer().getInventory().getItem(interactEvent.getHand() != null ?
 					interactEvent.getHand() : EquipmentSlot.HAND);
 		} else if (e instanceof PlayerInteractEntityEvent) {
 			PlayerInteractEntityEvent interactEntityEvent = (PlayerInteractEntityEvent) e;
-			p = interactEntityEvent.getPlayer();
-			if (versionToNumber() == 18) {
-				return p.getItemInHand();
-			}
-
-			return p.getInventory().getItem(interactEntityEvent.getHand());
-			// ^ no null check needed, there is always a hand with this event
+			// no null check needed, there is always a hand with this event
+			return interactEntityEvent.getPlayer().getInventory().getItem(interactEntityEvent.getHand());
 		}
-		return Toolkit.safeItemStack("AIR");
+		return new ItemStack(Material.AIR);
 	}
 
 	public static void setHandItemForInteraction(Event e, ItemStack item) {
-		Player p;
-
 		if (e instanceof PlayerInteractEvent) {
 			PlayerInteractEvent interactEvent = (PlayerInteractEvent) e;
-			p = interactEvent.getPlayer();
-			if (versionToNumber() == 18) {
-				p.setItemInHand(item);
-				return;
-			}
-
-			p.getInventory().setItem(interactEvent.getHand() != null ?
+			interactEvent.getPlayer().getInventory().setItem(interactEvent.getHand() != null ?
 					interactEvent.getHand() : EquipmentSlot.HAND, item);
 		} else if (e instanceof PlayerInteractEntityEvent) {
 			PlayerInteractEntityEvent interactEntityEvent = (PlayerInteractEntityEvent) e;
-			p = interactEntityEvent.getPlayer();
-			if (versionToNumber() == 18) {
-				p.setItemInHand(item);
-				return;
-			}
-
-			p.getInventory().setItem(interactEntityEvent.getHand(), item);
-			// ^ no null check needed, there is always a hand with this event
+			interactEntityEvent.getPlayer().getInventory().setItem(interactEntityEvent.getHand(), item);
 		}
 	}
 
 	public static boolean eitherHandHasMaterial(Player p, String materialString) {
-		Material materialToFind = XMaterial.matchXMaterial(materialString).get().parseMaterial();
-		if (versionToNumber() == 18) {
-			return p.getItemInHand().getType() == materialToFind;
-		}
+		Material materialToFind = safeMaterial(materialString);
 		return p.getInventory().getItemInMainHand().getType() == materialToFind ||
 				p.getInventory().getItemInOffHand().getType() == materialToFind;
 	}
@@ -466,10 +431,8 @@ public class Toolkit {
 	}
 
 	public static SlotWrapper getSlotUsedForInteraction(PlayerInteractEvent e) {
-		if (versionToNumber() >= 19) {
-			if (e.getHand() == EquipmentSlot.OFF_HAND) {
-				return new SlotWrapper(e.getHand());
-			}
+		if (e.getHand() == EquipmentSlot.OFF_HAND) {
+			return new SlotWrapper(e.getHand());
 		}
 		return new SlotWrapper(e.getPlayer().getInventory().getHeldItemSlot());
 	}
@@ -531,15 +494,27 @@ public class Toolkit {
 
 	}
 
+	/** Seconds from a config to ticks; -1 stays -1, an infinite effect. */
 	public static int parsePotionEffectDuration(int duration) {
-		int durationInTicks = duration * 20;
+		return duration == -1 ? -1 : duration * 20;
+	}
 
-		if (duration == -1) { // if you put -1 in any version it makes it infinite
-			boolean useNegativeOneVersion = Bukkit.getVersion().contains("1.19.4") || Toolkit.versionToNumber() >= 120;
-			return useNegativeOneVersion ? -1 : Integer.MAX_VALUE;
+	/** A whole number of at least 0, or -1 when the text is not one (letters, sign, too big). */
+	public static int parseNonNegativeInt(String text) {
+		if (text == null || text.isEmpty()) {
+			return -1;
 		}
-
-		return durationInTicks;
+		for (int i = 0; i < text.length(); i++) {
+			char c = text.charAt(i);
+			if (c < '0' || c > '9') {
+				return -1;
+			}
+		}
+		try {
+			return Integer.parseInt(text);
+		} catch (NumberFormatException tooBig) {
+			return -1;
+		}
 	}
 
 }

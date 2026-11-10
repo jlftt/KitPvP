@@ -5,7 +5,6 @@ import com.planetgallium.kitpvp.Game;
 import com.planetgallium.kitpvp.api.Kit;
 import com.planetgallium.kitpvp.game.Arena;
 import com.planetgallium.kitpvp.util.*;
-import org.apache.commons.lang.StringUtils;
 import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
 import org.bukkit.Location;
@@ -39,8 +38,13 @@ public class MainCommand implements CommandExecutor {
         this.messages = resources.getMessages();
     }
 
+    // Set when a known command was refused for lack of permission, so the sender is not also told it is unknown.
+    // Commands run on the server thread, one at a time.
+    private boolean permissionDenied;
+
     @Override
     public boolean onCommand(CommandSender sender, Command command, String alias, String[] args) {
+        permissionDenied = false;
 
         if (args.length == 0) {
             executeInfoCommand(sender);
@@ -96,6 +100,10 @@ public class MainCommand implements CommandExecutor {
                 return true;
             }
 
+        }
+
+        if (permissionDenied) {
+            return true;
         }
 
         if (sender instanceof Player) {
@@ -229,8 +237,7 @@ public class MainCommand implements CommandExecutor {
 
         String serverVersion = Bukkit.getBukkitVersion() + " " +
                 (Bukkit.getVersion().contains("Spigot") ? "(Spigot)" : "(Other)");
-        String pluginVersion = plugin.getDescription().getVersion() + " " +
-                (plugin.needsUpdate() ? "&c(Requires Update)" : "&e(Latest Version)");
+        String pluginVersion = plugin.getDescription().getVersion();
         String isSpawnSet = (config.contains("Arenas") ? "&eConfigured" : "&cUnconfigured");
 
         sender.sendMessage(Toolkit.translate("&7[&b&lKIT-PVP&7] &aServer Version: &7" + serverVersion));
@@ -240,18 +247,8 @@ public class MainCommand implements CommandExecutor {
     }
 
     private void executeKitsCommand(CommandSender sender) {
-        String message = "";
-
-        for (String kitName : resources.getPluginDirectoryFiles("kits", false)) {
-            String[] fileName = kitName.split(".yml", 2);
-            message += fileName[0] + ", ";
-        }
-
-        if (!message.isEmpty()) {
-            message = message.substring(0, message.length() - 2);
-        }
-
-        sender.sendMessage(messages.fetchString("Messages.Commands.Kits").replace("%kits%", message));
+        String kitNames = String.join(", ", resources.getPluginDirectoryFiles("kits", false));
+        sender.sendMessage(messages.fetchString("Messages.Commands.Kits").replace("%kits%", kitNames));
     }
 
     private void executeClearCommandOther(CommandSender sender, String[] args) {
@@ -287,7 +284,13 @@ public class MainCommand implements CommandExecutor {
         String targetName = args[1];
 
         if (plugin.getDatabase().isPlayerRegistered(targetName)) {
+            boolean wasCached = CacheManager.getStatsCache().containsKey(targetName);
             sendStatsMessage(sender, targetName);
+
+            // Showing an offline player's stats loads them; don't keep them cached until the next reload
+            if (!wasCached && Bukkit.getPlayerExact(targetName) == null) {
+                CacheManager.getStatsCache().remove(targetName);
+            }
         } else {
             sender.sendMessage(messages.fetchString("Messages.Error.Offline"));
         }
@@ -301,9 +304,14 @@ public class MainCommand implements CommandExecutor {
 
         if (target != null && Toolkit.inArena(target)) {
             Kit kitToGive = arena.getKits().getKitByName(kitName);
+            if (kitToGive == null) {
+                sender.sendMessage(messages.fetchString("Messages.Error.Lost"));
+                return;
+            }
+
             sender.sendMessage(messages.fetchString("Messages.Commands.KitOther")
-                    .replace("%player%", playerName)
-                    .replace("%kit%", kitName));
+                    .replace("%player%", target.getName())
+                    .replace("%kit%", kitToGive.getName()));
 
             arena.getKits().attemptToGiveKitToPlayer(target, kitToGive);
         } else {
@@ -318,22 +326,21 @@ public class MainCommand implements CommandExecutor {
 
         if (isValidStatIdentifier(statsIdentifier, true)) {
 
-            if (!StringUtils.isNumeric(possibleAmount)) {
+            int amount = Toolkit.parseNonNegativeInt(possibleAmount);
+            if (amount < 0) {
                 sender.sendMessage(resources.getMessages().fetchString("Messages.Error.InvalidNumber")
                         .replace("%number%", possibleAmount));
                 return;
             }
 
-            String playerUUID = plugin.getDatabase().usernameToUUID(playerName);
-
-            if (playerUUID == null) {
+            if (plugin.getDatabase().usernameToUUID(playerName) == null) {
                 sender.sendMessage(resources.getMessages().fetchString("Messages.Error.Offline"));
                 return;
             }
 
-            int amount = Integer.parseInt(possibleAmount);
             arena.getStats().setStat(statsIdentifier, playerName, amount);
-            arena.getStats().pushCachedStatsToDatabase(playerName, false);
+            // An offline player's stats are only loaded for this change: saved, then dropped from the cache
+            arena.getStats().pushCachedStatsToDatabase(playerName, Bukkit.getPlayerExact(playerName) == null);
 
             sender.sendMessage(resources.getMessages().fetchString("Messages.Commands.SetStats")
                     .replace("%player%", playerName)
@@ -449,7 +456,7 @@ public class MainCommand implements CommandExecutor {
             p.sendMessage(messages.fetchString("Messages.Commands.Removed").replace("%arena%", arenaName));
             Toolkit.playSoundToPlayer(p, "ENTITY_ZOMBIE_ATTACK_WOODEN_DOOR", 1);
         } else {
-            p.sendMessage(messages.fetchString("Messages.Error.Arena"));
+            p.sendMessage(messages.fetchString("Messages.Error.Arena").replace("%arena%", arenaName));
         }
     }
 
@@ -469,8 +476,8 @@ public class MainCommand implements CommandExecutor {
     private void executePreviewCommand(Player p, String[] args) {
         String kitName = args[1];
 
-        if (arena.getKits().isKit(kitName)) {
-            Kit kitToPreview = arena.getKits().getKitByName(kitName);
+        Kit kitToPreview = arena.getKits().isKit(kitName) ? arena.getKits().getKitByName(kitName) : null;
+        if (kitToPreview != null) {
             arena.getMenus().getPreviewMenu().open(p, kitToPreview, resources);
         } else {
             p.sendMessage(messages.fetchString("Messages.Error.Lost"));
@@ -485,7 +492,7 @@ public class MainCommand implements CommandExecutor {
             return;
         }
 
-        if (!arena.getKits().isKit(kitName)) {
+        if (!arena.getKits().isKitNameTaken(kitName)) {
             arena.getKits().createKit(p, kitName);
 
             p.sendMessage(messages.fetchString("Messages.Commands.Create")
@@ -504,16 +511,6 @@ public class MainCommand implements CommandExecutor {
         } else {
             p.sendMessage(messages.fetchString("Messages.Error.Location"));
         }
-    }
-
-    private boolean hasPermission(CommandSender sender, String permission) {
-        if (sender.hasPermission(permission)) {
-            return true;
-        }
-
-        sender.sendMessage(messages.fetchString("Messages.General.Permission")
-                .replace("%permission%", permission));
-        return false;
     }
 
     private void clearKit(Player p) {
@@ -549,24 +546,35 @@ public class MainCommand implements CommandExecutor {
         }
     }
 
+    // The kit becomes a file name (kits/<name>.yml): letters, digits and underscores only, so no path
+    // separators or dots can lead it out of the kits folder
     private boolean validateKitName(String possibleKitName) {
-        return !possibleKitName.contains("-") && !possibleKitName.contains("+");
+        return possibleKitName.matches("[A-Za-z0-9_]+");
     }
 
     private boolean isCommand(String[] args, CommandSender sender, String arg0, String permission) {
-        if (args[0].equalsIgnoreCase(arg0)) {
-            return permission == null || hasPermission(sender, permission);
+        if (!args[0].equalsIgnoreCase(arg0)) {
+            return false;
+        }
+
+        if (permission == null || sender.hasPermission(permission)) {
+            return true;
+        }
+
+        if (!permissionDenied) {
+            permissionDenied = true;
+            sender.sendMessage(messages.fetchString("Messages.General.Permission")
+                    .replace("%permission%", permission));
         }
         return false;
     }
 
     private void sendUnknownCommand(CommandSender sender, String alias, String[] args) {
-        StringBuilder unknownCommand = new StringBuilder();
-        for (String arg : args) {
-            unknownCommand.append(arg).append(" ");
+        if (permissionDenied) {
+            return; // already told they lack the permission for it
         }
 
-        sender.sendMessage(Toolkit.translate("%prefix% &cUnknown command: /" + alias + " " + unknownCommand));
+        sender.sendMessage(Toolkit.translate("%prefix% &cUnknown command: /" + alias + " " + String.join(" ", args)));
     }
 
     private boolean isValidStatIdentifier(String identifierToValidate, boolean includeExperience) {
