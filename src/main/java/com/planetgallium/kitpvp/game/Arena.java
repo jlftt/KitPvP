@@ -5,6 +5,7 @@ import java.util.*;
 import com.planetgallium.kitpvp.util.*;
 import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
+import org.bukkit.Location;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
@@ -171,10 +172,16 @@ public class Arena {
 		}
 	}
 
-	public void toSpawn(Player p, String arenaName) {
+	/** One of the arena's spawns, at random; null when the arena is missing or has none. */
+	public Location getRandomSpawnLocation(String arenaName) {
 		String spawn = generateRandomArenaSpawn(arenaName);
+		return spawn == null ? null : Toolkit.getLocationFromResource(config, "Arenas." + arenaName + "." + spawn);
+	}
+
+	public void toSpawn(Player p, String arenaName) {
+		Location spawn = getRandomSpawnLocation(arenaName);
 		if (spawn != null) {
-			p.teleport(Toolkit.getLocationFromResource(config, "Arenas." + arenaName + "." + spawn));
+			p.teleport(spawn);
 		} else {
 			p.sendMessage(resources.getMessages().fetchString("Messages.Error.Arena")
 					.replace("%arena%", arenaName));

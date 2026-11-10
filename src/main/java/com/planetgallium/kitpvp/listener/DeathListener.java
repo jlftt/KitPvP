@@ -11,6 +11,7 @@ import org.bukkit.Sound;
 import org.bukkit.World;
 import org.bukkit.entity.*;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
@@ -77,20 +78,39 @@ public class DeathListener implements Listener {
 
 	}
 
-	@EventHandler
+	/**
+	 * The respawn itself puts the player on an arena spawn, rather than a teleport a tick after it, and the
+	 * arena items come only once they are alive again. Both used to happen while the player was still dead
+	 * (a tick after the death), then again after the respawn: a dead player moved around could come back
+	 * where they died, as after a death by their own TNT.
+	 */
+	@EventHandler(priority = EventPriority.HIGHEST)
 	public void onRespawn(PlayerRespawnEvent e) {
-		if (Toolkit.inArena(e.getPlayer())) {
-			if (!config.getBoolean("Arena.FancyDeath")) {
-				Player p = e.getPlayer();
-
-				new BukkitRunnable() {
-					@Override
-					public void run() {
-						arena.toSpawn(p, p.getWorld().getName());
-					}
-				}.runTaskLater(plugin, 1L);
-			}
+		Player p = e.getPlayer();
+		if (!Toolkit.inArena(p) || config.getBoolean("Arena.FancyDeath")) {
+			return;
 		}
+
+		String arenaName = p.getWorld().getName();
+		Location spawn = arena.getRandomSpawnLocation(arenaName);
+		if (spawn != null) {
+			e.setRespawnLocation(spawn);
+		}
+
+		new BukkitRunnable() {
+			@Override
+			public void run() {
+				if (!p.isOnline() || p.isDead()) {
+					return;
+				}
+				doClearInventoryOnRespawnIfEnabled(p);
+				arena.addPlayer(p, false, config.getBoolean("Arena.GiveItemsOnRespawn"));
+				if (spawn == null) {
+					arena.toSpawn(p, arenaName); // says the arena has no spawn
+				}
+				Toolkit.runCommands(p, config.getStringList("Respawn.Commands"), "none", "none");
+			}
+		}.runTaskLater(plugin, 1L);
 	}
 
 	private void respawnPlayer(Player victim) {
@@ -146,17 +166,9 @@ public class DeathListener implements Listener {
 			}.runTaskTimer(plugin, 0L, 20L);
 
 		} else {
+			// The rest happens once they respawn (onRespawn)
 			arena.removePlayer(victim);
 			doClearInventoryOnRespawnIfEnabled(victim);
-
-			new BukkitRunnable() {
-				@Override
-				public void run() {
-					arena.addPlayer(victim, true, config.getBoolean("Arena.GiveItemsOnRespawn"));
-					Toolkit.runCommands(victim, config.getStringList("Respawn.Commands"),
-							"none", "none");
-				}
-			}.runTaskLater(plugin, 1L);
 		}
 	}
 
