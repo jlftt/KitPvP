@@ -4,6 +4,7 @@ import com.cryptomorin.xseries.XSound;
 import com.cryptomorin.xseries.messages.Titles;
 import com.planetgallium.kitpvp.util.*;
 import org.bukkit.Effect;
+import org.bukkit.Material;
 import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.Sound;
@@ -64,7 +65,7 @@ public class DeathListener implements Listener {
 			respawnPlayer(victim);
 
 			if (config.getBoolean("Arena.DeathParticles")) {
-				victim.getWorld().playEffect(victim.getLocation().add(0.0D, 1.0D, 0.0D), Effect.STEP_SOUND, 152);
+				victim.getWorld().playEffect(victim.getLocation().add(0.0D, 1.0D, 0.0D), Effect.STEP_SOUND, Material.REDSTONE_BLOCK);
 			}
 
 			Toolkit.runCommands(victim, config.getStringList("Death.Commands"), "%victim%", victim.getName());
