@@ -39,7 +39,7 @@ public class AttributeParser {
         if (effectsSection != null) {
 
             for (String effectName : effectsSection.getKeys(false)) {
-                PotionEffectType type = XPotion.matchXPotion(effectName).get().getPotionEffectType();
+                PotionEffectType type = Toolkit.safePotionEffectType(effectName);
                 int amplifier = resource.getInt(path + "." + effectName + ".Amplifier");
                 int duration = resource.getInt(path + "." + effectName + ".Duration");
 
@@ -240,7 +240,7 @@ public class AttributeParser {
 
         for (String effectName : resource.getConfigurationSection(path).getKeys(false)) {
             String specificPath = path + "." + effectName;
-            potionMeta.addCustomEffect(new PotionEffect(PotionEffectType.getByName(effectName),
+            potionMeta.addCustomEffect(new PotionEffect(Toolkit.safePotionEffectType(effectName),
                     resource.getInt(specificPath + ".Duration") * 20,
                     resource.getInt(specificPath + ".Amplifier") - 1), true);
         }
